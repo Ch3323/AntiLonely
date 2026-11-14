@@ -15,6 +15,7 @@ import Header from "@/component/Header";
 import Icon from "@/component/Icon";
 import Tape from "@/component/Tape";
 import PostCard from "@/component/PostCard";
+import RoomOnlineChip from "@/component/RoomOnlineChip";
 import { ReportModal } from "@/component/post-thread/ReportModal";
 import { formatCount } from "@/lib/format";
 import {
@@ -52,6 +53,7 @@ import {
   roomLook,
 } from "@/lib/styles";
 import type { MyRoom, Room } from "@/types/room";
+import type { RoomPresenceConfig } from "@/lib/room-presence";
 import type {
   BoardPostSummary,
   ReactionItem,
@@ -66,6 +68,7 @@ type Props = {
   currentUser?: RoomBoardViewer | null;
   myRooms?: MyRoom[];
   serverTime?: string;
+  presence?: RoomPresenceConfig | null;
 };
 
 function createOptimisticPost(
@@ -174,6 +177,7 @@ export default function RoomBoardFeed({
   currentUser = null,
   myRooms = [],
   serverTime,
+  presence = null,
 }: Props) {
   const [referenceTime, setReferenceTime] = useState<number>(() => {
     
@@ -766,6 +770,7 @@ export default function RoomBoardFeed({
                 <span className="rounded-full border border-edge-strong bg-cream px-2 py-0.5 text-xs font-medium text-ink-soft">
                   สมาชิก {formatCount(membership.memberCount)}
                 </span>
+                <RoomOnlineChip presence={presence} />
               </div>
             </div>
           </div>

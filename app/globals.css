@@ -20,6 +20,10 @@
   --color-mist: #eef0f2;
   --color-mist-ink: #4f555c;
   --color-highlight: #ffe07a;
+  /* "Online now" chip in the room header: pale green, dark green text. */
+  --color-online: #e4f5dc;
+  --color-online-edge: #b3dca0;
+  --color-online-ink: #2c6527;
 
   --color-ink: #3b2a20;
   --color-ink-soft: #6e625a;
