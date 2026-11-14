@@ -9,6 +9,8 @@ import {
   RESET_LINK_LIFETIME_SECONDS,
   resetPasswordEmail,
   sendEmail,
+  VERIFY_LINK_LIFETIME_SECONDS,
+  verifyEmailMessage,
 } from "./email";
 import { prisma } from "./prisma";
 
@@ -32,8 +34,32 @@ async function generateUsername() {
 // Postgres tables (see prisma/schema.prisma), not in a hosted auth service.
 export const auth = betterAuth({
   database: prismaAdapter(prisma, { provider: "postgresql" }),
+  // ยืนยันอีเมล: signing up with an email and password sends a link to
+  // /api/auth/verify-email, which marks the email as verified, signs the
+  // person in and sends them on to our /verify-email page (with ?error=… for
+  // a link that has expired or doesn't check out). Google accounts arrive
+  // already verified by Google.
+  emailVerification: {
+    sendVerificationEmail: async ({ user, url }) => {
+      // Logged, never thrown: the "send it again" endpoint answers the same
+      // whether or not the email has an account.
+      try {
+        await sendEmail(verifyEmailMessage(user.email, url));
+      } catch (error) {
+        console.error("[auth] Could not send the verification email", error);
+      }
+    },
+    sendOnSignUp: true,
+    autoSignInAfterVerification: true,
+    expiresIn: VERIFY_LINK_LIFETIME_SECONDS,
+  },
   emailAndPassword: {
     enabled: true,
+    // No session until the email is verified: signing up doesn't log you in,
+    // and logging in is refused with EMAIL_NOT_VERIFIED. Signing up with an
+    // email that already has an account now answers like a new sign-up, so
+    // it can't be used to find out who is here.
+    requireEmailVerification: true,
     // ลืมรหัสผ่าน: Better Auth makes a one-time token and calls this with a
     // link to /api/auth/reset-password/<token>, which checks the token and
     // sends the person on to our /reset-password page. The request endpoint

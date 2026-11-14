@@ -70,3 +70,36 @@ test('sendEmail posts to Resend when configured', async (t) => {
   assert.deepEqual(body.to, ['a@example.com']);
   assert.ok(body.text.includes(url));
 });
+
+test('verifyEmailMessage carries the link and how long it lasts', async () => {
+  const { verifyEmailMessage, VERIFY_LINK_LIFETIME_SECONDS } = await import('./email.ts');
+  const link = 'http://localhost:3000/api/auth/verify-email?token=abc&callbackURL=%2Fverify-email';
+  const message = verifyEmailMessage('new@example.com', link);
+  assert.equal(message.to, 'new@example.com');
+  assert.ok(message.text.includes(link));
+  assert.ok(message.text.includes(`${VERIFY_LINK_LIFETIME_SECONDS / 3600} ชั่วโมง`));
+});
+
+test('sendEmail with EMAIL_LOG_ONLY prints instead of calling the provider', async (t) => {
+  const env = { ...process.env };
+  const realFetch = globalThis.fetch;
+  const realLog = console.log;
+  t.after(() => {
+    process.env = env;
+    globalThis.fetch = realFetch;
+    console.log = realLog;
+  });
+  process.env = { ...env, NODE_ENV: 'development', RESEND_API_KEY: 'key', EMAIL_FROM: 'a@b.c', EMAIL_LOG_ONLY: '1' };
+  let called = false;
+  globalThis.fetch = (async () => {
+    called = true;
+    return new Response('{}');
+  }) as typeof fetch;
+  let printed = '';
+  console.log = (text: string) => {
+    printed += text;
+  };
+  await sendEmail({ to: 'x@example.com', subject: 's', text: 'the-link' });
+  assert.equal(called, false);
+  assert.ok(printed.includes('the-link'));
+});

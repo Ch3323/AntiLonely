@@ -17,6 +17,7 @@ import PasswordInput from "@/component/PasswordInput";
 import { authClient } from "@/lib/auth-client";
 import { authErrorMessage } from "@/lib/auth-errors";
 import { MIN_PASSWORD_LENGTH } from "@/lib/password";
+import { rememberPendingEmail } from "@/lib/pending-email";
 import {
   alertClass,
   disabledButtonClass,
@@ -159,12 +160,15 @@ export default function SignupForm({ inModal = false }: { inModal?: boolean }) {
             const form = new FormData(formElement);
             setPending(true);
             setError(null);
+            const email = String(form.get("email")).trim();
             const { error } = await authClient.signUp.email({
               // The nickname is the name others see; the username is generated
               // on the server (see lib/auth.ts).
               name: String(form.get("nickname")).trim(),
-              email: String(form.get("email")).trim(),
+              email,
               password,
+              // Where the link in the verification email ends up.
+              callbackURL: "/verify-email",
             });
             if (error) {
               setError(authErrorMessage(error));
@@ -178,11 +182,11 @@ export default function SignupForm({ inModal = false }: { inModal?: boolean }) {
             setSubmitted(false);
             setLeftPassword(false);
             setPending(false);
-            // Signed up and logged in. Going to / closes the modal; refresh lets
-            // server components see the new session.
+            // Signed up, but not logged in until the email is verified. Going
+            // to another page closes the modal.
+            rememberPendingEmail(email);
             startNavigation(() => {
-              router.push("/");
-              router.refresh();
+              router.push("/verify-email");
             });
           }}
         >
