@@ -8,6 +8,7 @@ import GoogleButton from "@/component/GoogleButton";
 import PasswordInput from "@/component/PasswordInput";
 import { authClient } from "@/lib/auth-client";
 import { authErrorMessage } from "@/lib/auth-errors";
+import { rememberPendingEmail } from "@/lib/pending-email";
 import {
   alertClass,
   disabledButtonClass,
@@ -23,6 +24,9 @@ export default function LoginForm({ inModal = false }: { inModal?: boolean }) {
   const [navigating, startNavigation] = useTransition();
   const busy = pending || navigating;
   const [error, setError] = useState<string | null>(null);
+  // The password was right but the email isn't verified yet: offer the way
+  // to the page that sends the link again.
+  const [unverified, setUnverified] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
 
   // Next hides this form on close instead of unmounting it. Without this the
@@ -32,6 +36,7 @@ export default function LoginForm({ inModal = false }: { inModal?: boolean }) {
     return () => {
       form?.reset();
       setError(null);
+      setUnverified(false);
       setPending(false);
     };
   }, []);
@@ -55,11 +60,17 @@ export default function LoginForm({ inModal = false }: { inModal?: boolean }) {
           const form = new FormData(formElement);
           setPending(true);
           setError(null);
+          setUnverified(false);
+          const email = String(form.get("email")).trim();
           const { error } = await authClient.signIn.email({
-            email: String(form.get("email")).trim(),
+            email,
             password: String(form.get("password")),
           });
           if (error) {
+            if (error.code === "EMAIL_NOT_VERIFIED") {
+              rememberPendingEmail(email);
+              setUnverified(true);
+            }
             setError(authErrorMessage(error));
             setPending(false);
             return;
@@ -112,6 +123,14 @@ export default function LoginForm({ inModal = false }: { inModal?: boolean }) {
         {error && (
           <p role="alert" className={alertClass}>
             {error}
+            {unverified && (
+              <>
+                {" "}
+                <AuthLink href="/verify-email" inModal={inModal}>
+                  หาอีเมลไม่เจอ? ส่งลิงก์ใหม่
+                </AuthLink>
+              </>
+            )}
           </p>
         )}
         <button

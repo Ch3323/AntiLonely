@@ -13,6 +13,10 @@ const messages: Record<string, string> = {
   INVALID_TOKEN: "ลิงก์นี้หมดอายุหรือถูกใช้ไปแล้ว ขอลิงก์ใหม่ได้เลย",
   USER_NOT_FOUND: "ลิงก์นี้หมดอายุหรือถูกใช้ไปแล้ว ขอลิงก์ใหม่ได้เลย",
   RESET_PASSWORD_DISABLED: "ตอนนี้ยังตั้งรหัสผ่านใหม่ไม่ได้ ลองใหม่ทีหลังนะ",
+  // Email verification (ยืนยันอีเมล).
+  EMAIL_NOT_VERIFIED: "อีเมลนี้ยังไม่ได้ยืนยัน กดลิงก์ในอีเมลที่เราส่งไปก่อนนะ",
+  TOKEN_EXPIRED: "ลิงก์ยืนยันหมดอายุแล้ว ขอลิงก์ใหม่ได้เลย",
+  INVALID_USER: "ลิงก์นี้เป็นของอีกบัญชีหนึ่ง ออกจากระบบก่อนแล้วลองกดลิงก์อีกครั้งนะ",
   // Set by the session hook in lib/auth.ts.
   ACCOUNT_BANNED: "บัญชีนี้ถูกแบนถาวร",
   ACCOUNT_SUSPENDED: "บัญชีนี้ถูกระงับชั่วคราว",
