@@ -4,6 +4,7 @@ import { RoomSkeleton } from "@/component/PageSkeletons";
 import { notFound, redirect } from "next/navigation";
 import Header from "@/component/Header";
 import RoomBoardFeed from "@/component/RoomBoardFeed";
+import { getRoomPresenceConfig } from "@/lib/room-presence-server";
 import { getRoomBoardData } from "./actions";
 
 type Props = {
@@ -26,6 +27,13 @@ async function RoomBoardFeedContent({ params }: Props) {
     redirect(`/rooms/${data.room.slug}`);
   }
 
+  const presence = getRoomPresenceConfig({
+    roomId: data.room.id,
+    viewerId: data.currentUser?.id ?? null,
+    isPrivate: data.room.isPrivate,
+    isMember: data.membership.status === "joined",
+  });
+
   return (
     <RoomBoardFeed
       room={data.room}
@@ -34,6 +42,7 @@ async function RoomBoardFeedContent({ params }: Props) {
       currentUser={data.currentUser}
       myRooms={data.myRooms}
       serverTime={data.serverTime}
+      presence={presence}
     />
   );
 }
