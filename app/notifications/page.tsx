@@ -4,6 +4,7 @@ import { connection } from 'next/server';
 import { NotificationsSkeleton } from '@/component/PageSkeletons';
 import Header from '@/component/Header';
 import { NotificationsClient } from '@/component/notifications/NotificationsClient';
+import { NotificationsAutoRefresh } from '@/component/LiveRefresh';
 import { getNotificationItems } from "@/lib/notifications-data";
 import { getViewerUser } from "@/lib/server-action-helpers";
 import { getMyRooms } from "@/lib/home-data";
@@ -25,12 +26,16 @@ async function NotificationsFeed() {
   ]);
 
   return (
-    <NotificationsClient
-      initialItems={feed.items}
-      serverTime={feed.serverTime}
-      rooms={rooms}
-      alias={resolveAuthorAlias(viewer)}
-    />
+    <>
+      {/* New notifications show up without a reload, like the bell's count. */}
+      <NotificationsAutoRefresh />
+      <NotificationsClient
+        initialItems={feed.items}
+        serverTime={feed.serverTime}
+        rooms={rooms}
+        alias={resolveAuthorAlias(viewer)}
+      />
+    </>
   );
 }
 

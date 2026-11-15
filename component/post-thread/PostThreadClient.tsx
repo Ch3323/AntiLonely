@@ -32,6 +32,7 @@ import {
   TIME_REFRESH_INTERVAL_MS,
 } from '@/lib/post-thread';
 import { syncReactionMutation } from '@/lib/reaction-client';
+import { createPendingLocalChanges, mergeThread } from '@/lib/live-merge';
 import {
   collectClientSubtreeIds,
   deleteCommentSubtreeOptimistic,
@@ -190,6 +191,22 @@ export function PostThreadClient({
   const toastTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const sortMenuRef = useRef<HTMLDivElement | null>(null);
   const [reactionTracker] = useState(createReactionMutationTracker);
+  const [pendingChanges] = useState(createPendingLocalChanges);
+  // A live update or a refresh brings a fresh thread: merge it in, keeping
+  // comments still being saved, deletes and edits in flight, and optimistic
+  // reactions, so nothing being typed or toggled is lost.
+  const [prevInitialThread, setPrevInitialThread] = useState(initialThread);
+  if (initialThread !== prevInitialThread) {
+    setPrevInitialThread(initialThread);
+    setThread((prev) =>
+      mergeThread({
+        current: prev,
+        incoming: initialThread,
+        tracker: reactionTracker,
+        pending: pendingChanges,
+      })
+    );
+  }
   const tempIdSeqRef = useRef(0);
   const threadRef = useRef(thread);
   const replyingToRef = useRef(replyingTo);
@@ -569,6 +586,7 @@ export function PostThreadClient({
         }
       }
 
+      pendingChanges.markEditing(targetId);
       setThread((prev) => ({
         ...prev,
         comments: editCommentOrReply(
@@ -607,9 +625,11 @@ export function PostThreadClient({
       } catch {
         rollbackEdit();
         showToast('ไม่สามารถแก้ไขความคิดเห็นได้ กรุณาลองใหม่อีกครั้ง');
+      } finally {
+        pendingChanges.clearEditing(targetId);
       }
     },
-    [currentUser, room.id, showToast, thread.id]
+    [currentUser, pendingChanges, room.id, showToast, thread.id]
   );
 
   const handleRequestDeleteComment = useCallback(
@@ -646,6 +666,7 @@ export function PostThreadClient({
       currentUser.id
     );
     const optimisticRemovedSet = new Set(removedIds);
+    pendingChanges.markDeleting(removedIds);
 
     setThread((prev) => ({
       ...prev,
@@ -693,6 +714,8 @@ export function PostThreadClient({
         comments: preserveCommentReactions(previousComments, prev.comments),
       }));
       showToast('ไม่สามารถลบความคิดเห็นได้ กรุณาลองใหม่อีกครั้ง');
+    } finally {
+      pendingChanges.clearDeleting(removedIds);
     }
   };
 

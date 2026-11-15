@@ -4,6 +4,11 @@ import { RoomSkeleton } from "@/component/PageSkeletons";
 import { notFound, redirect } from "next/navigation";
 import Header from "@/component/Header";
 import RoomBoardFeed from "@/component/RoomBoardFeed";
+import { RoomLiveRefresh } from "@/component/LiveRefresh";
+import {
+  getRoomLiveConfig,
+  isRoomLiveConfigured,
+} from "@/lib/room-live-server";
 import { getRoomPresenceConfig } from "@/lib/room-presence-server";
 import { getRoomBoardData } from "./actions";
 
@@ -34,17 +39,28 @@ async function RoomBoardFeedContent({ params }: Props) {
     isMember: data.membership.status === "joined",
   });
 
+  // Live updates: other people's posts, edits, reactions and joins show up
+  // without a reload. Same membership rule as the presence count.
+  const live = getRoomLiveConfig({
+    roomId: data.room.id,
+    isPrivate: data.room.isPrivate,
+    isMember: data.membership.status === "joined",
+  });
+
   return (
-    <RoomBoardFeed
-      key={data.room.id}
-      room={data.room}
-      initialPosts={data.initialPosts}
-      initialMembership={data.membership}
-      currentUser={data.currentUser}
-      myRooms={data.myRooms}
-      serverTime={data.serverTime}
-      presence={presence}
-    />
+    <>
+      <RoomLiveRefresh live={live} fallbackPoll={!isRoomLiveConfigured()} />
+      <RoomBoardFeed
+        key={data.room.id}
+        room={data.room}
+        initialPosts={data.initialPosts}
+        initialMembership={data.membership}
+        currentUser={data.currentUser}
+        myRooms={data.myRooms}
+        serverTime={data.serverTime}
+        presence={presence}
+      />
+    </>
   );
 }
 
