@@ -93,24 +93,28 @@ export async function getRoomBoardData(
 
   const canonicalRoomId = roomRecord.id;
 
+  // A private room shows its posts to active members only; everyone else gets
+  // its name, description, rules and member count, and a way to join.
+  const viewerMembership = viewer
+    ? await prisma.roomMember.findUnique({
+        where: {
+          userId_roomId: {
+            userId: viewer.id,
+            roomId: canonicalRoomId,
+          },
+        },
+        select: { status: true },
+      })
+    : null;
+  const canSeePosts =
+    !roomRecord.passwordHash || viewerMembership?.status === 'active';
+
   const [
-    viewerMembership,
     messageRows,
     myMemberships,
     unreadNotifications,
   ] = await Promise.all([
-    viewer
-      ? prisma.roomMember.findUnique({
-          where: {
-            userId_roomId: {
-              userId: viewer.id,
-              roomId: canonicalRoomId,
-            },
-          },
-          select: { status: true },
-        })
-      : Promise.resolve(null),
-    prisma.message.findMany({
+    canSeePosts ? prisma.message.findMany({
       where: {
         roomId: canonicalRoomId,
         parentId: null,
@@ -143,7 +147,7 @@ export async function getRoomBoardData(
           },
         },
       },
-    }),
+    }) : Promise.resolve([]),
     viewer
       ? prisma.roomMember.findMany({
           where: {
@@ -576,10 +580,12 @@ export async function updateRoomMembership(input: {
         return { ok: false, error: 'ห้องนี้ถูกล็อกชั่วคราว ไม่สามารถเข้าร่วมได้' };
       }
 
+      // Private rooms are joined with their password (joinPrivateRoom in
+      // app/room-actions.ts), never through here.
       if (room.passwordHash && existingMembership?.status !== 'active') {
         return {
           ok: false,
-          error: 'ห้องส่วนตัวต้องได้รับอนุมัติหรือรหัสผ่านก่อนเข้าร่วม',
+          error: 'ห้องนี้เป็นห้องส่วนตัว ต้องใช้รหัสผ่านห้องเพื่อเข้าร่วม',
         };
       }
 

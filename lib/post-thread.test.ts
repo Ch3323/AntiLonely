@@ -509,25 +509,24 @@ describe('post-thread domain logic', () => {
     assert.deepEqual(leftState, { status: 'none', memberCount: 119 });
 
     // Re-joining public room increments memberCount
-    const rejoinedPublic = joinBoardRoom(leftState, false);
+    const rejoinedPublic = joinBoardRoom(leftState);
     assert.deepEqual(rejoinedPublic, { status: 'joined', memberCount: 120 });
 
     // Joining while already joined is a no-op
-    assert.deepEqual(joinBoardRoom(rejoinedPublic, false), rejoinedPublic);
+    assert.deepEqual(joinBoardRoom(rejoinedPublic), rejoinedPublic);
 
-    // Private room transitions to requested without changing memberCount
+    // A private room (joined once its password is accepted) counts the same
     const initialPrivate = getInitialBoardMembership(
       { id: 'secret', members: 50 },
       ['chat']
     );
     assert.deepEqual(initialPrivate, { status: 'none', memberCount: 50 });
 
-    const requestedPrivate = joinBoardRoom(initialPrivate, true);
-    assert.deepEqual(requestedPrivate, { status: 'requested', memberCount: 50 });
+    const joinedPrivate = joinBoardRoom(initialPrivate);
+    assert.deepEqual(joinedPrivate, { status: 'joined', memberCount: 51 });
 
-    // Canceling request returns to none without decrementing memberCount
-    const cancelledRequest = leaveBoardRoom(requestedPrivate);
-    assert.deepEqual(cancelledRequest, { status: 'none', memberCount: 50 });
+    // Leaving when not joined changes nothing
+    assert.deepEqual(leaveBoardRoom(initialPrivate), initialPrivate);
 
     // Leaving when memberCount is 0 never goes negative
     const zeroCountJoined: RoomBoardMembershipState = {

@@ -7,8 +7,8 @@ import { primaryButtonClass } from "@/lib/styles";
 import type { Room } from "@/types/room";
 
 // Once joined, the sticker stays pressed in and turns peach with a check.
-// Pressing it again asks first before leaving the room. A private room can't
-// be joined from here yet: pressing says what it needs. While a join or leave
+// Pressing it again asks first before leaving the room. A private room asks
+// for its password first (a lock shows which ones). While a join or leave
 // is being saved the button shows a spinner and ignores presses (it stays
 // focusable, so keyboard focus isn't lost).
 export default function JoinButton({ room }: { room: Room }) {
@@ -20,7 +20,7 @@ export default function JoinButton({ room }: { room: Room }) {
     <button
       type="button"
       aria-pressed={joined}
-      aria-haspopup={joined ? "dialog" : undefined}
+      aria-haspopup={joined || room.isPrivate ? "dialog" : undefined}
       aria-disabled={saving || undefined}
       onClick={() => {
         if (saving) return;
@@ -35,10 +35,15 @@ export default function JoinButton({ room }: { room: Room }) {
     >
       {saving ? (
         <Spinner />
+      ) : joined ? (
+        <Icon name="check" className="size-4" />
       ) : (
-        joined && <Icon name="check" className="size-4" />
+        room.isPrivate && <Icon name="lock" className="size-4" />
       )}
-      {joined ? "เข้าร่วมแล้ว" : room.isPrivate ? "ขอเข้าร่วม" : "เข้าร่วม"}
+      {joined ? "เข้าร่วมแล้ว" : "เข้าร่วม"}
+      {!joined && room.isPrivate && (
+        <span className="sr-only">(ห้องส่วนตัว ใช้รหัสผ่าน)</span>
+      )}
       {saving && <span className="sr-only">(กำลังบันทึก)</span>}
     </button>
   );

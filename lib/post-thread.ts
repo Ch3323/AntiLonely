@@ -425,18 +425,12 @@ export function getInitialBoardMembership(
   };
 }
 
+// A private room is joined the same way, once its password is accepted.
 export function joinBoardRoom(
-  state: RoomBoardMembershipState,
-  isPrivate?: boolean
+  state: RoomBoardMembershipState
 ): RoomBoardMembershipState {
   if (state.status === 'joined') {
     return state;
-  }
-  if (isPrivate) {
-    return {
-      ...state,
-      status: 'requested',
-    };
   }
   return {
     status: 'joined',
