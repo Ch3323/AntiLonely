@@ -3,11 +3,11 @@
 import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { DEFAULT_ROOM_EMOJI, isUuid } from "@/lib/room-board";
 import { addDuration, SUSPENSION_PRESET_DAYS } from "@/lib/sanctions";
 
 type UserStatus = "active" | "suspended" | "banned";
 
-// ตรวจสอบสิทธิ์ก่อนจัดการข้อมูลทุกครั้ง
 async function checkAdminPermission() {
   const session = await auth.api.getSession({
     headers: await headers(),
@@ -28,7 +28,6 @@ async function checkAdminPermission() {
 
 type UserRole = "user" | "moderator" | "admin";
 
-// เปลี่ยน role ของผู้ใช้ (เฉพาะ admin เท่านั้น)
 export async function updateUserRole(userId: string, role: UserRole) {
   const actor = await checkAdminPermission();
 
@@ -52,14 +51,12 @@ export async function updateUserRole(userId: string, role: UserRole) {
   return { success: true };
 }
 
-// เปลี่ยนสถานะผู้ใช้ใน Database
 export async function updateUsersStatus(
   rawUserIds: string[],
   status: UserStatus,
 ) {
   const { id: adminId, role: actorRole } = await checkAdminPermission();
 
-  // Server Action เรียกตรงได้ จึงไม่เชื่อ type จาก TypeScript
   if (
     !Array.isArray(rawUserIds) ||
     rawUserIds.length === 0 ||
@@ -75,12 +72,10 @@ export async function updateUsersStatus(
 
   const userIds = [...new Set(rawUserIds)];
 
-  // เฉพาะ admin เท่านั้นที่แบนได้
   if (status === "banned" && actorRole !== "admin") {
     throw new Error("เฉพาะ admin เท่านั้นที่แบนผู้ใช้ได้");
   }
 
-  // ระงับ / แบน: ห้ามทำกับตัวเอง, admin หรือผู้ใช้ที่ไม่มีอยู่จริง
   if (status !== "active") {
     if (userIds.includes(adminId)) {
       throw new Error("ไม่สามารถระงับหรือแบนตัวเองได้");
@@ -102,7 +97,6 @@ export async function updateUsersStatus(
 
   const now = new Date();
 
-  // moderator กดปลดแบน: แจ้ง error แทนที่จะทำเหมือนสำเร็จโดยไม่มีอะไรเปลี่ยน
   if (status === "active" && actorRole !== "admin") {
     const activeBans = await prisma.sanction.count({
       where: {
@@ -118,7 +112,6 @@ export async function updateUsersStatus(
   }
 
   await prisma.$transaction(async (tx) => {
-    // ปลดระงับ / ปลดแบน (moderator ปลดได้เฉพาะการระงับ)
     if (status === "active") {
       await tx.sanction.updateMany({
         where: {
@@ -137,18 +130,15 @@ export async function updateUsersStatus(
       return;
     }
 
-    // ระงับ / แบน
     const sanctionType =
       status === "suspended" ? "suspension" : "ban";
 
-    // ระงับมีกำหนดเวลา, แบนไม่มีวันสิ้นสุด
     const endAt =
       sanctionType === "suspension"
         ? addDuration(now, SUSPENSION_PRESET_DAYS[0], "day")
         : null;
 
     for (const userId of userIds) {
-      // ตรวจสอบว่ามีสถานะนี้อยู่แล้วหรือไม่
       const existing = await tx.sanction.findFirst({
         where: {
           userId,
@@ -161,7 +151,6 @@ export async function updateUsersStatus(
         },
       });
 
-      // ถ้ายังไม่มี ให้สร้างประวัติการลงโทษใหม่
       if (!existing) {
         await tx.sanction.create({
           data: {
@@ -176,11 +165,153 @@ export async function updateUsersStatus(
       }
     }
 
-    // เตะผู้ใช้ออกจากระบบทันที
     await tx.session.deleteMany({
       where: { userId: { in: userIds } },
     });
   });
 
   return { success: true };
+}
+
+export type AdminUserDetail = {
+  id: string;
+  username: string;
+  nickname: string | null;
+  image: string | null;
+  email: string; // ปิดบังแล้ว อีเมลเต็มไม่ออกจาก server
+  role: UserRole;
+  status: UserStatus;
+  joinedAt: string;
+  lastActiveAt: string | null;
+  postCount: number;
+  reactionCount: number;
+  reportedCount: number;
+  rooms: { id: string; name: string; emoji: string; isPrivate: boolean }[];
+};
+
+export type AdminUserDetailResult =
+  | { ok: true; user: AdminUserDetail }
+  | { ok: false; error: string };
+
+function maskEmail(email: string) {
+  const at = email.lastIndexOf("@");
+  if (at <= 0) return "***";
+  const local = email.slice(0, at);
+  return `${local.slice(0, local.length <= 2 ? 1 : 2)}***${email.slice(at)}`;
+}
+
+export async function getAdminUserDetail(
+  userId: string,
+): Promise<AdminUserDetailResult> {
+  try {
+    await checkAdminPermission();
+  } catch (err) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "คุณไม่มีสิทธิ์ดำเนินการนี้",
+    };
+  }
+
+  if (!isUuid(userId)) return { ok: false, error: "ไม่พบผู้ใช้" };
+
+  try {
+    const now = new Date();
+
+    const [user, messages, reportedCount, lastSession, sanction, memberships] =
+      await Promise.all([
+        prisma.user.findUnique({
+          where: { id: userId },
+          select: {
+            id: true,
+            username: true,
+            displayUsername: true,
+            name: true,
+            email: true,
+            image: true,
+            role: true,
+            createdAt: true,
+          },
+        }),
+        prisma.message.findMany({
+          where: { authorId: userId, status: "visible" },
+          orderBy: { createdAt: "desc" },
+          select: {
+            parentId: true,
+            createdAt: true,
+            _count: { select: { reactions: true } },
+          },
+        }),
+        prisma.report.count({ where: { message: { authorId: userId } } }),
+        prisma.session.findFirst({
+          where: { userId },
+          orderBy: { updatedAt: "desc" },
+          select: { updatedAt: true },
+        }),
+        prisma.sanction.findFirst({
+          where: {
+            userId,
+            type: { in: ["suspension", "ban"] },
+            liftedAt: null,
+            OR: [{ endAt: null }, { endAt: { gt: now } }],
+          },
+          select: { type: true },
+        }),
+        prisma.roomMember.findMany({
+          where: { userId, status: "active", room: { status: "active" } },
+          orderBy: { joinedAt: "desc" },
+          select: {
+            room: { select: { id: true, name: true, passwordHash: true } },
+          },
+        }),
+      ]);
+
+    if (!user) return { ok: false, error: "ไม่พบผู้ใช้" };
+
+    const username = user.displayUsername?.trim() || user.username;
+    const name = user.name.trim();
+    // ชื่อเล่น = user.name ที่ผู้ใช้ตั้งเอง ถ้าซ้ำกับชื่อผู้ใช้ก็ไม่ต้องโชว์
+    const nickname =
+      name &&
+      name.toLowerCase() !== username.toLowerCase() &&
+      name.toLowerCase() !== user.username.toLowerCase()
+        ? name
+        : null;
+
+    // กิจกรรมล่าสุด = ค่าที่ใหม่กว่าระหว่างข้อความล่าสุดกับ session ล่าสุด
+    const times = [messages[0]?.createdAt, lastSession?.updatedAt]
+      .filter((t): t is Date => Boolean(t))
+      .map((t) => t.getTime());
+
+    return {
+      ok: true,
+      user: {
+        id: user.id,
+        username,
+        nickname,
+        image: user.image ?? null,
+        email: maskEmail(user.email),
+        role: user.role,
+        status: !sanction
+          ? "active"
+          : sanction.type === "ban"
+            ? "banned"
+            : "suspended",
+        joinedAt: user.createdAt.toISOString(),
+        lastActiveAt: times.length
+          ? new Date(Math.max(...times)).toISOString()
+          : null,
+        postCount: messages.filter((m) => m.parentId === null).length,
+        reactionCount: messages.reduce((sum, m) => sum + m._count.reactions, 0),
+        reportedCount,
+        rooms: memberships.map(({ room }) => ({
+          id: room.id,
+          name: room.name,
+          emoji: DEFAULT_ROOM_EMOJI,
+          isPrivate: Boolean(room.passwordHash),
+        })),
+      },
+    };
+  } catch {
+    return { ok: false, error: "ไม่สามารถโหลดข้อมูลผู้ใช้ได้ กรุณาลองใหม่อีกครั้ง" };
+  }
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import UserDetailModal from "@/component/admin/UserDetailModal";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useNow } from "@/component/useNow";
@@ -110,6 +110,7 @@ export default function AdminUsersClient({ initialUsers }: Props) {
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [error, setError] = useState("");
+  const [viewUserId, setViewUserId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
   const now = useNow();
@@ -421,12 +422,13 @@ export default function AdminUsersClient({ initialUsers }: Props) {
 
                 <td className="px-4 py-4">
                   <div className="flex gap-1.5">
-                    <Link
-                      href={`/admin/users/${u.id}`}
+                    <button
+                      type="button"
+                      onClick={() => setViewUserId(u.id)}
                       className="rounded border border-edge-strong bg-white px-2 py-0.5 text-[11px] font-medium hover:bg-butter"
                     >
                       ดู
-                    </Link>
+                    </button>
 
                     <button
                       disabled={isPending}
@@ -465,6 +467,13 @@ export default function AdminUsersClient({ initialUsers }: Props) {
         <p className="mt-3 text-sm text-ink-soft">
           กำลังบันทึกข้อมูล...
         </p>
+      )}
+      {viewUserId && (
+        <UserDetailModal
+          key={viewUserId}
+          userId={viewUserId}
+          onClose={() => setViewUserId(null)}
+        />
       )}
     </div>
   );
