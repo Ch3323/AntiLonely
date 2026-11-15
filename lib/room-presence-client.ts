@@ -1,44 +1,13 @@
 // Browser-only: joins a room's Supabase Realtime Presence channel and reports
-// how many people are on it. The app signs people in with Better Auth, not
-// Supabase Auth, so the connection uses the public (publishable/anon) key only.
+// how many people are on it. The client and the leave bookkeeping are shared
+// with the live room updates (realtime-client.ts).
+import type { RealtimeChannel } from "@supabase/supabase-js";
 import {
-  createClient,
-  type RealtimeChannel,
-  type SupabaseClient,
-} from "@supabase/supabase-js";
+  afterLeaving,
+  getRealtimeClient,
+  leaveChannel,
+} from "./realtime-client";
 import { countOnline, type RoomPresenceConfig } from "./room-presence.ts";
-
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const SUPABASE_KEY = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
-
-let client: SupabaseClient | null = null;
-
-function getClient(): SupabaseClient | null {
-  if (!SUPABASE_URL || !SUPABASE_KEY) return null;
-  if (!client) {
-    try {
-      // Accept the project URL with or without a path such as /rest/v1/
-      // (the Data API page shows it that way); the client needs the origin.
-      const projectUrl = new URL(SUPABASE_URL).origin;
-      client = createClient(projectUrl, SUPABASE_KEY, {
-        // No Supabase Auth here: don't store or refresh sessions.
-        auth: {
-          persistSession: false,
-          autoRefreshToken: false,
-          detectSessionInUrl: false,
-        },
-      });
-    } catch {
-      return null;
-    }
-  }
-  return client;
-}
-
-// realtime-js hands back the existing channel for a topic until it has
-// finished leaving, so a quick remount (Strict Mode, back/forward between
-// pages) waits for the previous leave before joining again.
-const leaving = new Map<string, Promise<unknown>>();
 
 /**
  * Joins the room's presence channel and calls `onCount` with the number of
@@ -49,7 +18,7 @@ export function watchRoomPresence(
   config: RoomPresenceConfig,
   onCount: (count: number | null) => void
 ): () => void {
-  const supabase = getClient();
+  const supabase = getRealtimeClient();
   if (!supabase) {
     onCount(null);
     return () => {};
@@ -89,23 +58,10 @@ export function watchRoomPresence(
     }
   };
 
-  const previous = leaving.get(config.topic);
-  if (previous) {
-    previous.finally(join);
-  } else {
-    join();
-  }
+  afterLeaving(config.topic, join);
 
   return () => {
     disposed = true;
-    const ch = channel;
-    if (!ch) return;
-    const done = supabase
-      .removeChannel(ch)
-      .catch(() => undefined)
-      .finally(() => {
-        if (leaving.get(config.topic) === done) leaving.delete(config.topic);
-      });
-    leaving.set(config.topic, done);
+    if (channel) leaveChannel(supabase, config.topic, channel);
   };
 }

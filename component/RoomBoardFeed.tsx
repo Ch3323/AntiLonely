@@ -28,6 +28,11 @@ import {
   mergeIncomingReactions,
   TIME_REFRESH_INTERVAL_MS,
 } from "@/lib/post-thread";
+import {
+  createPendingLocalChanges,
+  mergeBoardPosts,
+  replaceTempPost,
+} from "@/lib/live-merge";
 import { syncReactionMutation } from "@/lib/reaction-client";
 import {
   canMemberReactInRoom,
@@ -193,28 +198,23 @@ export default function RoomBoardFeed({
   const [prevInitialPosts, setPrevInitialPosts] = useState(initialPosts);
   const [posts, setPosts] = useState<BoardPostSummary[]>(initialPosts);
   const [reactionTracker] = useState(createReactionMutationTracker);
+  const [pendingChanges] = useState(createPendingLocalChanges);
   const postsRef = useRef(posts);
   useLayoutEffect(() => {
     postsRef.current = posts;
   }, [posts]);
   if (initialPosts !== prevInitialPosts) {
     setPrevInitialPosts(initialPosts);
-    setPosts((prev) => {
-      const prevById = new Map(prev.map((post) => [post.id, post]));
-      return initialPosts.map((incoming) => {
-        const current = prevById.get(incoming.id);
-        if (!current) return incoming;
-        return {
-          ...incoming,
-          reactions: mergeIncomingReactions({
-            tracker: reactionTracker,
-            targetId: incoming.id,
-            currentReactions: current.reactions,
-            incomingReactions: incoming.reactions,
-          }),
-        };
-      });
-    });
+    // Fresh posts from a live update or a refresh: keep posts still being
+    // saved, deletes and edits in flight, and optimistic reactions.
+    setPosts((prev) =>
+      mergeBoardPosts({
+        current: prev,
+        incoming: initialPosts,
+        tracker: reactionTracker,
+        pending: pendingChanges,
+      })
+    );
   }
 
   const [text, setText] = useState("");
@@ -353,9 +353,7 @@ export default function RoomBoardFeed({
         return;
       }
 
-      setPosts((prev) =>
-        prev.map((p) => (p.id === tempId ? result.data : p))
-      );
+      setPosts((prev) => replaceTempPost(prev, tempId, result.data));
       showToast("ตั้งกระทู้เรียบร้อยแล้ว");
     } catch {
       setPosts((prev) => prev.filter((p) => p.id !== tempId));
@@ -375,6 +373,7 @@ export default function RoomBoardFeed({
 
       const previousPost = postsRef.current.find((p) => p.id === postId);
       const sinceEpoch = reactionTracker.getCurrentEpoch();
+      pendingChanges.markEditing(postId);
       setPosts((prev) =>
         editBoardPost(prev, postId, newContent, currentUser.id)
       );
@@ -425,9 +424,11 @@ export default function RoomBoardFeed({
       } catch {
         rollbackPostContent();
         showToast("ไม่สามารถแก้ไขกระทู้ได้ กรุณาลองใหม่อีกครั้ง");
+      } finally {
+        pendingChanges.clearEditing(postId);
       }
     },
-    [currentUser, reactionTracker, room.id, showToast]
+    [currentUser, pendingChanges, reactionTracker, room.id, showToast]
   );
 
   const handleDeletePost = useCallback(
@@ -440,6 +441,7 @@ export default function RoomBoardFeed({
       const deletedIndex = postsRef.current.findIndex((p) => p.id === postId);
       const deletedPost =
         deletedIndex >= 0 ? postsRef.current[deletedIndex] : undefined;
+      pendingChanges.markDeleting([postId]);
       setPosts((prev) => deleteBoardPost(prev, postId, currentUser.id));
 
       const restoreDeletedPost = () => {
@@ -469,9 +471,11 @@ export default function RoomBoardFeed({
       } catch {
         restoreDeletedPost();
         showToast("ไม่สามารถลบกระทู้ได้ กรุณาลองใหม่อีกครั้ง");
+      } finally {
+        pendingChanges.clearDeleting([postId]);
       }
     },
-    [currentUser, room.id, showToast]
+    [currentUser, pendingChanges, room.id, showToast]
   );
 
   const updatePostReactions = useCallback(

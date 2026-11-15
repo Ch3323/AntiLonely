@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { prisma } from '@/lib/prisma';
 import { toggleMessageReaction } from '@/lib/reaction-service';
+import { signalRoomChange } from '@/lib/room-live-notify';
 import {
   formatReportReason,
   getViewerUser,
@@ -314,6 +315,7 @@ export async function createRoomPost(input: {
     });
 
     revalidateRoomPaths(room.id, room.slug);
+    signalRoomChange({ roomId: room.id, postId: created.id, board: true });
 
     return {
       ok: true,
@@ -426,6 +428,7 @@ export async function updateRoomPost(input: {
     });
 
     revalidateRoomPaths(input.roomId, existing.room.slug);
+    signalRoomChange({ roomId: input.roomId, postId: existing.id, board: true });
 
     const mapped = mapDbPostToBoardPost(
       {
@@ -494,6 +497,7 @@ export async function deleteRoomPost(input: {
     });
 
     revalidateRoomPaths(input.roomId, existing.room.slug);
+    signalRoomChange({ roomId: input.roomId, postId: existing.id, board: true });
 
     return { ok: true, data: { postId: existing.id } };
   }, 'ไม่สามารถลบกระทู้ได้ กรุณาลองใหม่อีกครั้ง');
@@ -518,6 +522,11 @@ export async function toggleRoomPostReaction(input: {
     revalidateRoomPaths(result.data.roomId, result.data.roomSlug);
     revalidatePath(`/rooms/${result.data.roomSlug}/posts/${result.data.postId}`);
     revalidatePath(`/rooms/${result.data.roomId}/posts/${result.data.postId}`);
+    signalRoomChange({
+      roomId: result.data.roomId,
+      postId: result.data.postId,
+      board: true,
+    });
     return {
       ok: true,
       data: {
@@ -629,6 +638,8 @@ export async function updateRoomMembership(input: {
     });
 
     revalidateRoomPaths(room.id, room.slug);
+    // The member count on the board; no thread involved.
+    signalRoomChange({ roomId: room.id, board: true });
 
     const nextStatus = input.action === 'join' ? 'active' : 'left';
     return {

@@ -1,6 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { signalRoomChange } from '@/lib/room-live-notify';
 import { prisma } from '@/lib/prisma';
 import { toggleMessageReaction } from '@/lib/reaction-service';
 import {
@@ -503,6 +504,12 @@ export async function createThreadReply(input: {
     });
 
     revalidateThreadPaths(context.room.id, context.room.slug, context.rootPost.id);
+    // The board shows each post's reply count, so it changes too.
+    signalRoomChange({
+      roomId: context.room.id,
+      postId: context.rootPost.id,
+      board: true,
+    });
 
     const thread = await loadPostThreadSnapshot(
       context.room,
@@ -598,6 +605,11 @@ export async function updateThreadMessage(input: {
     });
 
     revalidateThreadPaths(context.room.id, context.room.slug, context.rootPost.id);
+    signalRoomChange({
+      roomId: context.room.id,
+      postId: context.rootPost.id,
+      board: updated.id === context.rootPost.id,
+    });
 
     return {
       ok: true,
@@ -686,6 +698,11 @@ export async function deleteThreadMessage(input: {
     });
 
     revalidateThreadPaths(context.room.id, context.room.slug, context.rootPost.id);
+    signalRoomChange({
+      roomId: context.room.id,
+      postId: context.rootPost.id,
+      board: true,
+    });
 
     return { ok: true, data: { deletedIds } };
   }, 'ไม่สามารถลบความคิดเห็นได้ กรุณาลองใหม่อีกครั้ง');
@@ -714,6 +731,11 @@ export async function toggleThreadReaction(input: {
       result.data.roomSlug,
       result.data.postId
     );
+    signalRoomChange({
+      roomId: result.data.roomId,
+      postId: result.data.postId,
+      board: result.data.messageId === result.data.postId,
+    });
     return {
       ok: true,
       data: {

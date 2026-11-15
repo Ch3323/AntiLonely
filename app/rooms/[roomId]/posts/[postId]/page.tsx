@@ -4,6 +4,8 @@ import { PostThreadSkeleton } from '@/component/PageSkeletons';
 import { notFound, redirect } from 'next/navigation';
 import Header from '@/component/Header';
 import { PostThreadClient } from '@/component/post-thread/PostThreadClient';
+import { RoomLiveRefresh } from '@/component/LiveRefresh';
+import { getRoomLiveConfig, isRoomLiveConfigured } from '@/lib/room-live-server';
 import { getPostThreadData } from './actions';
 
 export const metadata = {
@@ -37,18 +39,30 @@ async function PostThreadContent({ params }: PostThreadPageProps) {
     redirect(`/rooms/${data.room.slug}/posts/${data.thread.id}`);
   }
 
+  // Live updates for this thread: comments, replies, edits and reactions by
+  // other people show up without a reload.
+  const live = getRoomLiveConfig({
+    roomId: data.room.id,
+    postId: data.thread.id,
+    isPrivate: data.room.isPrivate,
+    isMember: data.memberStatus === 'active',
+  });
+
   return (
-    <PostThreadClient
-      key={data.thread.id}
-      room={data.room}
-      memberStatus={data.memberStatus}
-      canComment={data.canComment}
-      canReact={data.canReact}
-      initialThread={data.thread}
-      currentUser={data.currentUser}
-      myRooms={data.myRooms}
-      serverTime={data.serverTime}
-    />
+    <>
+      <RoomLiveRefresh live={live} fallbackPoll={!isRoomLiveConfigured()} />
+      <PostThreadClient
+        key={data.thread.id}
+        room={data.room}
+        memberStatus={data.memberStatus}
+        canComment={data.canComment}
+        canReact={data.canReact}
+        initialThread={data.thread}
+        currentUser={data.currentUser}
+        myRooms={data.myRooms}
+        serverTime={data.serverTime}
+      />
+    </>
   );
 }
 

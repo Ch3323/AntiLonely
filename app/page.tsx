@@ -3,6 +3,7 @@ import { connection } from "next/server";
 import Header from "@/component/Header";
 import HomeMain from "@/component/HomeMain";
 import HomeSkeleton from "@/component/HomeSkeleton";
+import { HomeAutoRefresh } from "@/component/LiveRefresh";
 import PostBox from "@/component/PostBox";
 import RoomMembership from "@/component/RoomMembership";
 import Sidebar from "@/component/Sidebar";
@@ -20,6 +21,9 @@ async function HomeContent() {
     // Joining and leaving rooms is shared by the sidebar, the room cards and
     // their modals.
     <RoomMembership myRooms={myRooms} rooms={rooms} signedIn={viewer !== null}>
+      {/* Picks up rooms other people create and fresh member and post
+          counts while the tab is visible. */}
+      <HomeAutoRefresh />
       <div className="flex flex-1 flex-col">
         <Header
           notifications={viewer?.notifications ?? 0}
