@@ -6,6 +6,8 @@ import Header from '@/component/Header';
 import { NotificationsClient } from '@/component/notifications/NotificationsClient';
 import { getNotificationItems } from "@/lib/notifications-data";
 import { getViewerUser } from "@/lib/server-action-helpers";
+import { getMyRooms } from "@/lib/home-data";
+import { resolveAuthorAlias } from "@/lib/room-board";
 
 export const metadata = {
   title: 'การแจ้งเตือน | AntiLonely',
@@ -17,12 +19,17 @@ async function NotificationsFeed() {
   const viewer = await getViewerUser();
   if (!viewer) redirect("/login");
 
-  const feed = await getNotificationItems(viewer.id);
+  const [feed, rooms] = await Promise.all([
+    getNotificationItems(viewer.id),
+    getMyRooms(),
+  ]);
 
   return (
     <NotificationsClient
       initialItems={feed.items}
       serverTime={feed.serverTime}
+      rooms={rooms}
+      alias={resolveAuthorAlias(viewer)}
     />
   );
 }
