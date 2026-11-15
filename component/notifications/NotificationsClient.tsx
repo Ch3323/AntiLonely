@@ -12,12 +12,9 @@ import {
   TIME_REFRESH_INTERVAL_MS,
 } from '@/lib/notifications';
 import Header from '@/component/Header';
-import {
-  markNotificationsRead,
-  useReadNotificationIds,
-} from '@/component/useReadNotifications';
 import Icon from '@/component/Icon';
-import { currentUser, myRooms } from '@/lib/mock';
+import type { MyRoom } from '@/types/room';
+import { markNotificationsRead } from '@/app/notifications/actions';
 import {
   disabledButtonClass,
   highlightClass,
@@ -30,23 +27,27 @@ import { EmptyState } from './EmptyState';
 interface NotificationsClientProps {
   initialItems: NotificationItem[];
   serverTime: string;
+  rooms: MyRoom[];
+  alias: string;
 }
 
 export function NotificationsClient({
   initialItems,
   serverTime,
+  rooms,
+  alias,
 }: NotificationsClientProps) {
-  // What's been read is kept in the browser (shared with the navbar bell).
-  const readIds = useReadNotificationIds();
+  const [optimisticRead, setOptimisticRead] = useState<Set<string>>(
+  () => new Set()
+  );
   const notifications = useMemo<NotificationItem[]>(
     () =>
-      readIds
-        ? initialItems.map((item) =>
-            readIds.has(item.id) ? { ...item, isRead: true } : item
-          )
-        : initialItems,
-    [initialItems, readIds]
+      initialItems.map((item) =>
+        optimisticRead.has(item.id) ? { ...item, isRead: true } : item
+      ),
+    [initialItems, optimisticRead]
   );
+  
   const [activeCategory, setActiveCategory] =
     useState<NotificationCategory>('all');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -118,15 +119,37 @@ export function NotificationsClient({
     }, 3000);
   };
 
+  const applyRead = (
+    ids: string[],
+    body: { ids?: string[]; all?: boolean }
+  ) => {
+    setOptimisticRead((prev) => new Set([...prev, ...ids]));
+
+    void markNotificationsRead(body).then((result) => {
+      if (result.ok) {
+        window.dispatchEvent(new Event('notifications:changed'));
+        return;
+      }
+      setOptimisticRead((prev) => {
+        const next = new Set(prev);
+        ids.forEach((id) => next.delete(id));
+        return next;
+      });
+      showToast(result.error);
+    });
+  };
+
   const handleItemClick = (id: string) => {
     const target = notifications.find((n) => n.id === id);
     if (target && !target.isRead) {
-      markNotificationsRead([id]);
+      applyRead([id], { ids: [id] });
     }
   };
 
   const handleMarkAllAsRead = () => {
-    markNotificationsRead(notifications.map((n) => n.id));
+    const unreadIds = notifications.filter((n) => !n.isRead).map((n) => n.id);
+    if (unreadIds.length === 0) return;
+    applyRead(unreadIds, { all: true });
     showToast('ทำเครื่องหมายว่าอ่านแล้วทั้งหมดเรียบร้อยแล้ว');
   };
 
@@ -134,8 +157,8 @@ export function NotificationsClient({
     <div className="flex flex-1 flex-col">
       <Header
         notifications={totalUnreadCount}
-        rooms={myRooms}
-        alias={currentUser.alias}
+        rooms={rooms}
+        alias={alias}
       />
       <main className="w-full max-w-[720px] mx-auto px-4 sm:px-6 py-8 sm:py-10 space-y-6 flex-1">
         {/* Header with Title and Mark all as read button */}
