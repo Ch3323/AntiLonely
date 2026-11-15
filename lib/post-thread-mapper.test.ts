@@ -216,7 +216,12 @@ describe('post-thread-mapper domain helpers', () => {
     assert.equal(thread.id, POST_ID);
     assert.equal(thread.boardSlug, 'local-postgres');
     assert.equal(thread.boardName, 'ห้องทดลอง Local Postgres');
-    assert.deepEqual(thread.author, { id: 'u-post', name: 'เจ้าของห้องลอง' });
+    // This author has no profile picture, so avatarUrl is present but unset.
+    assert.deepEqual(thread.author, {
+      id: 'u-post',
+      name: 'เจ้าของห้องลอง',
+      avatarUrl: undefined,
+    });
     assert.deepEqual(thread.reactions, [
       { emoji: '❤️', count: 2, reactedByMe: true },
     ]);
