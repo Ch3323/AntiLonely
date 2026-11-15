@@ -18,17 +18,24 @@ export type RoomLiveConfig = {
   thread: string | null;
 };
 
+/** `t` value for a change every page of the room must pick up (the room was
+ * renamed or archived, or too many threads changed at once to list). */
+export const WHOLE_ROOM = "*";
+
 /**
  * The whole signal. `t` is the opaque token of the thread that changed ("" for
- * changes to the room itself, such as who has joined). `b` is 1 when the room
- * board's view changed too (a post, its reactions, its reply count, members).
+ * changes to the room board only, such as who has joined; WHOLE_ROOM for
+ * changes every page of the room shows). `b` is 1 when the room board's view
+ * changed too (a post, its reactions, its reply count, members).
  */
 export type RoomLiveSignal = { t: string; b: 0 | 1 };
 
 export function makeRoomLiveSignal(input: {
   thread: string | null;
   board: boolean;
+  wholeRoom?: boolean;
 }): RoomLiveSignal {
+  if (input.wholeRoom) return { t: WHOLE_ROOM, b: 1 };
   return { t: input.thread ?? "", b: input.board ? 1 : 0 };
 }
 
@@ -54,6 +61,7 @@ export function signalConcernsPage(
   signal: RoomLiveSignal,
   pageThread: string | null
 ): boolean {
+  if (signal.t === WHOLE_ROOM) return true;
   if (pageThread === null) return signal.b === 1;
   return signal.t !== "" && signal.t === pageThread;
 }

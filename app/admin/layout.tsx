@@ -4,6 +4,7 @@ import { AdminSkeleton } from "@/component/PageSkeletons";
 import { headers } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 import AdminSidebar from "@/component/admin/AdminSidebar";
+import { AdminAutoRefresh } from "@/component/LiveRefresh";
 import { auth } from "@/lib/auth";
 
 // Guards every /admin page: no session -> login, not admin/moderator -> 404
@@ -18,7 +19,12 @@ async function AdminGuard({ children }: { children: React.ReactNode }) {
   const role = session.user.role;
   if (role !== "admin" && role !== "moderator") notFound();
 
-  return <>{children}</>;
+  return (
+    <>
+      <AdminAutoRefresh />
+      {children}
+    </>
+  );
 }
 
 export const instant = false;

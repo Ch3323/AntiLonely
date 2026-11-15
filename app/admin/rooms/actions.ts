@@ -5,6 +5,7 @@ import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { signalRoomChange } from "@/lib/room-live-notify";
 
 async function checkRoomPermission() {
   const session = await auth.api.getSession({
@@ -62,6 +63,8 @@ export async function updateRoom(
 
     revalidatePath("/admin/rooms");
     revalidatePath("/admin");
+    // Open pages of this room pick up the change (new name, or archived).
+    signalRoomChange({ roomId: id, board: true, wholeRoom: true });
 
     return { ok: true as const };
   } catch {
@@ -104,6 +107,8 @@ export async function archiveRoom(id: string) {
 
     revalidatePath("/admin/rooms");
     revalidatePath("/admin");
+    // Open pages of this room pick up the change (new name, or archived).
+    signalRoomChange({ roomId: id, board: true, wholeRoom: true });
 
     return { ok: true as const };
   } catch {

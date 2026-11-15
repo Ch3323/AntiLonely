@@ -5,6 +5,7 @@ import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { signalMessagesChanged } from "@/lib/room-live-notify";
 
 export type ReportActionResult =
   | { ok: true; affected: number }
@@ -155,6 +156,8 @@ export async function deleteReportedMessages(
 
   revalidatePath("/admin/reports");
   revalidatePath("/admin");
+  // People with these rooms or threads open see the content go away.
+  signalMessagesChanged(validMessageIds);
 
   return {
     ok: true,
