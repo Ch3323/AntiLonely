@@ -90,6 +90,7 @@ function toThreadAuthor(
   return {
     id: authorId ?? 'deleted-user',
     name: resolveAuthorAlias(author),
+    avatarUrl: author?.image ?? undefined,
   };
 }
 

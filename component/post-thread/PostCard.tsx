@@ -71,8 +71,17 @@ export const PostCard = memo(function PostCard({
       {/* Author Header & Overflow Menu */}
       <div ref={headerRef} className="flex items-start justify-between gap-4">
         <div className="flex items-center gap-3 min-w-0">
-          <div aria-hidden="true" className={avatarClass}>
-            <Icon name="user" className="size-4" />
+          <div aria-hidden="true" className={`${avatarClass} overflow-hidden`}>
+            {thread.author.avatarUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={thread.author.avatarUrl}
+                alt=""
+                className="size-full object-cover"
+              />
+            ) : (
+              <Icon name="user" className="size-4" />
+            )}
           </div>
           <div className="min-w-0">
             <div className="text-[15px] font-semibold truncate">
