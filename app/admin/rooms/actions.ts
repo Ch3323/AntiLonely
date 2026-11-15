@@ -113,3 +113,45 @@ export async function archiveRoom(id: string) {
     };
   }
 }
+
+export async function unarchiveRoom(id: string) {
+  const permission = await checkRoomPermission();
+
+  if (!permission.ok) return permission;
+
+  if (!id) {
+    return {
+      ok: false as const,
+      error: "ไม่พบรหัสห้อง",
+    };
+  }
+
+  try {
+    const result = await prisma.room.updateMany({
+      where: {
+        id,
+        status: "archived",
+      },
+      data: {
+        status: "active",
+      },
+    });
+
+    if (result.count === 0) {
+      return {
+        ok: false as const,
+        error: "ไม่พบห้อง หรือห้องนี้ไม่ได้อยู่ในสถานะจัดเก็บ",
+      };
+    }
+
+    revalidatePath("/admin/rooms");
+    revalidatePath("/admin");
+
+    return { ok: true as const };
+  } catch {
+    return {
+      ok: false as const,
+      error: "ไม่สามารถยกเลิกการจัดเก็บห้องได้ กรุณาลองใหม่",
+    };
+  }
+}

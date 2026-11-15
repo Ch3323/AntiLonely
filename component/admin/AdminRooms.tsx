@@ -2,7 +2,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { archiveRoom, updateRoom } from "@/app/admin/rooms/actions";
+import { archiveRoom, unarchiveRoom, updateRoom } from "@/app/admin/rooms/actions";
 
 type Room = {
   id: string;
@@ -183,6 +183,56 @@ export default function AdminRooms({ rooms, summary }: Props) {
     setNotice(`จัดเก็บ ${targets.length} ห้องเรียบร้อยแล้ว`);
   }
 
+  async function handleUnarchive(room: Room) {
+  if (pending) return;
+
+  setPending(true);
+  setNotice("");
+
+  const result = await unarchiveRoom(room.id);
+
+  setPending(false);
+
+  if (!result.ok) {
+    setNotice(result.error);
+    return;
+  }
+
+  setSelected((current) => current.filter((id) => id !== room.id));
+  setNotice(`ยกเลิกการจัดเก็บห้อง "${room.name}" เรียบร้อยแล้ว`);
+}
+
+async function handleBulkUnarchive() {
+  const targets = rooms.filter(
+    (room) => selected.includes(room.id) && room.status === "archived"
+  );
+
+  if (!targets.length) return;
+
+  const confirmed = window.confirm(
+    `ต้องการยกเลิกการจัดเก็บ ${targets.length} ห้องที่เลือกหรือไม่?`
+  );
+
+  if (!confirmed) return;
+
+  setPending(true);
+  setNotice("");
+
+  for (const room of targets) {
+    const result = await unarchiveRoom(room.id);
+
+    if (!result.ok) {
+      setNotice(result.error);
+      setPending(false);
+      return;
+    }
+  }
+
+  setSelected([]);
+  setPending(false);
+  setNotice(`ยกเลิกการจัดเก็บ ${targets.length} ห้องเรียบร้อยแล้ว`);
+}
+
   return (
     <div className="min-h-full text-ink">
       <div className="mb-6 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
@@ -269,13 +319,23 @@ export default function AdminRooms({ rooms, summary }: Props) {
             >
               ยกเลิกการเลือก
             </button>
-            <button
-              disabled={pending}
-              onClick={handleBulkArchive}
-              className="rounded-md border border-red-200 px-3 py-1.5 text-red-600 hover:bg-red-50 disabled:opacity-50"
-            >
-              จัดเก็บที่เลือก
-            </button>
+            {tab === "archived" ? (
+              <button
+                disabled={pending}
+                onClick={handleBulkUnarchive}
+                className="rounded-md border px-3 py-1.5 hover:bg-butter disabled:opacity-50"
+              >
+                ยกเลิกการจัดเก็บที่เลือก
+              </button>
+            ) : (
+              <button
+                disabled={pending}
+                onClick={handleBulkArchive}
+                className="rounded-md border border-red-200 px-3 py-1.5 text-red-600 hover:bg-red-50 disabled:opacity-50"
+              >
+                จัดเก็บที่เลือก
+              </button>
+            )}
           </div>
         </div>
       )}
@@ -372,13 +432,22 @@ export default function AdminRooms({ rooms, summary }: Props) {
                     >
                       แก้ไข
                     </button>
-                    <button
-                      disabled={room.status === "archived"}
-                      onClick={() => setConfirmArchive(room)}
-                      className="rounded-md border border-edge-strong px-2.5 py-1 text-xs hover:bg-butter disabled:cursor-not-allowed disabled:opacity-40"
-                    >
-                      จัดเก็บ
-                    </button>
+                    {room.status === "archived" ? (
+                      <button
+                        disabled={pending}
+                        onClick={() => handleUnarchive(room)}
+                        className="rounded-md border border-edge-strong px-2.5 py-1 text-xs hover:bg-butter disabled:opacity-50"
+                      >
+                        ยกเลิกการจัดเก็บ
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => setConfirmArchive(room)}
+                        className="rounded-md border border-edge-strong px-2.5 py-1 text-xs hover:bg-butter"
+                      >
+                        จัดเก็บ
+                      </button>
+                    )}
                   </div>
                 </td>
               </tr>
