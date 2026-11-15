@@ -11,6 +11,7 @@ import {
 import { changeRoomMembership } from "@/app/home-actions";
 import Icon from "@/component/Icon";
 import LeaveRoomModal from "@/component/LeaveRoomModal";
+import RoomPasswordModal from "@/component/RoomPasswordModal";
 import {
   joinedRooms as listJoinedRooms,
   joinRoom,
@@ -89,7 +90,7 @@ export default function RoomMembership({
     membershipFrom(myRooms),
     (current: Membership, { room, action }: Change) =>
       action === "join"
-        ? joinRoom(current, { id: room.id, isPrivate: false })
+        ? joinRoom(current, room)
         : leaveRoom(current, room.id),
   );
   // Rooms with a save on its way. It clears itself once the save and the
@@ -100,6 +101,8 @@ export default function RoomMembership({
   );
   const [, startTransition] = useTransition();
   const [leaving, setLeaving] = useState<Room | null>(null);
+  // The private room whose password is being asked for.
+  const [unlocking, setUnlocking] = useState<Room | null>(null);
   // Why the last join or leave didn't go through.
   const [problem, setProblem] = useState<string | null>(null);
 
@@ -117,10 +120,15 @@ export default function RoomMembership({
     // button pressed twice while it closes, is ignored.
     if (saving.includes(room.id)) return;
     setProblem(null);
+    // A private room asks for its password first; its modal saves the join
+    // and refreshes the page itself.
+    if (action === "join" && room.isPrivate) {
+      setUnlocking(room);
+      return;
+    }
     startTransition(async () => {
       markSaving(room.id);
-      // A private room is going to be refused, so don't show it as joined.
-      if (action === "leave" || !room.isPrivate) showChange({ room, action });
+      showChange({ room, action });
       try {
         const result = await changeRoomMembership({ roomId: room.id, action });
         if (!result.ok) setProblem(result.error);
@@ -150,6 +158,13 @@ export default function RoomMembership({
           room={leaving}
           onClose={() => setLeaving(null)}
           onLeave={() => change(leaving, "leave")}
+        />
+      )}
+      {unlocking && (
+        <RoomPasswordModal
+          room={unlocking}
+          onClose={() => setUnlocking(null)}
+          onJoined={() => setUnlocking(null)}
         />
       )}
       {problem && (

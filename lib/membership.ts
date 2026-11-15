@@ -1,9 +1,9 @@
 import type { MyRoom, Room } from "@/types/room";
 
-// Where you stand with each room: joined, or waiting on a request to join a
-// private one. Rooms you have nothing to do with are left out. Keys keep the
-// order rooms were joined in, which the sidebar shows newest last.
-export type MembershipStatus = "joined" | "requested";
+// The rooms you've joined. Rooms you have nothing to do with are left out.
+// Keys keep the order rooms were joined in, which the sidebar shows newest
+// last. (A private room is joined with its password; there are no requests.)
+export type MembershipStatus = "joined";
 export type Membership = Readonly<Record<string, MembershipStatus>>;
 
 // The rooms in "ห้องของฉัน" at the start are the ones you've joined.
@@ -19,15 +19,16 @@ export function membershipStatus(
   return Object.hasOwn(membership, roomId) ? membership[roomId] : null;
 }
 
-// Joining a public room is instant; a private one gets a request instead.
+// Joining marks the room joined. For a private room this is only called once
+// the server has accepted its password.
 export function joinRoom(
   membership: Membership,
-  room: Pick<Room, "id" | "isPrivate">,
+  room: Pick<Room, "id">,
 ): Membership {
-  return { ...membership, [room.id]: room.isPrivate ? "requested" : "joined" };
+  return { ...membership, [room.id]: "joined" };
 }
 
-// Leaving a room, or taking back a request, forgets the room.
+// Leaving a room forgets it.
 export function leaveRoom(membership: Membership, roomId: string): Membership {
   const next = { ...membership };
   delete next[roomId];
@@ -84,7 +85,7 @@ export function membershipStorageKey(userId: string) {
   return `antilonely:membership:${userId}`;
 }
 
-// How many rooms are joined (requests still waiting don't count).
+// How many rooms are joined.
 export function joinedCount(membership: Membership): number {
   return Object.values(membership).filter((s) => s === "joined").length;
 }

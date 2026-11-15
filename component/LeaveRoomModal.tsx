@@ -13,7 +13,7 @@ import {
 
 // A small sheet asked before leaving a room you've joined. Leaving is easy to
 // take back for a public room, so "ออกจากห้อง" is a white sticker, not red;
-// a private room says you'd have to ask to join again.
+// a private room says you'd need its password to come back.
 export default function LeaveRoomModal({
   room,
   onClose,
@@ -48,7 +48,7 @@ export default function LeaveRoomModal({
         {room.isPrivate && (
           <p className="mt-2 flex items-start gap-1.5 text-sm text-mist-ink">
             <Icon name="lock" className="mt-0.5 size-4" />
-            เป็นห้องส่วนตัว ถ้าอยากกลับมาต้องส่งคำขอเข้าร่วมใหม่อีกครั้ง
+            เป็นห้องส่วนตัว ถ้าอยากกลับมาต้องใช้รหัสผ่านห้องอีกครั้ง
           </p>
         )}
 

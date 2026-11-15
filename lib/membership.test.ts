@@ -90,8 +90,8 @@ test("joinRoom: a public room is joined straight away", () => {
   assert.equal(membershipStatus(joinRoom({}, songs), "songs"), "joined");
 });
 
-test("joinRoom: a private room only gets a request", () => {
-  assert.equal(membershipStatus(joinRoom({}, leak), "acs-leak"), "requested");
+test("joinRoom: a private room is joined too (once its password was accepted)", () => {
+  assert.equal(membershipStatus(joinRoom({}, leak), "acs-leak"), "joined");
 });
 
 test("joinRoom: leaves the previous state untouched", () => {
@@ -112,16 +112,16 @@ test("leaveRoom: leaves the previous state untouched", () => {
   assert.deepEqual(before, { chat: "joined" });
 });
 
-test("roomsToDiscover: rooms you haven't joined or asked to join, in order", () => {
-  const membership = { chat: "joined", "acs-leak": "requested" } as const;
+test("roomsToDiscover: rooms you haven't joined, in order", () => {
+  const membership = { chat: "joined", "acs-leak": "joined" } as const;
   assert.deepEqual(
     roomsToDiscover(rooms, membership).map((room) => room.id),
     ["books", "songs"],
   );
 });
 
-test("pickRandomRoom: picks among the rooms you haven't joined or asked to join", () => {
-  const membership = { chat: "joined", "acs-leak": "requested" } as const;
+test("pickRandomRoom: picks among the rooms you haven't joined", () => {
+  const membership = { chat: "joined", "acs-leak": "joined" } as const;
   assert.equal(pickRandomRoom(rooms, membership, undefined, () => 0)?.id, "books");
   assert.equal(pickRandomRoom(rooms, membership, undefined, () => 0.999)?.id, "songs");
 });
@@ -133,15 +133,15 @@ test("pickRandomRoom: draws a different room from the one on screen", () => {
 });
 
 test("pickRandomRoom: shows the same room again when it's the only one left", () => {
-  const membership = { chat: "joined", books: "joined", "acs-leak": "requested" } as const;
+  const membership = { chat: "joined", books: "joined", "acs-leak": "joined" } as const;
   assert.equal(pickRandomRoom(rooms, membership, "songs", () => 0)?.id, "songs");
 });
 
-test("pickRandomRoom: nothing to suggest once every room is joined or requested", () => {
+test("pickRandomRoom: nothing to suggest once every room is joined", () => {
   const membership = {
     chat: "joined",
     books: "joined",
-    "acs-leak": "requested",
+    "acs-leak": "joined",
     songs: "joined",
   } as const;
   assert.equal(pickRandomRoom(rooms, membership, undefined, () => 0), null);
@@ -163,15 +163,15 @@ test("joinedRooms: adds rooms joined later at the end, newest last, with nothing
   ]);
 });
 
-test("joinedRooms: leaves out rooms you've only asked to join", () => {
+test("joinedRooms: lists a private room once it's joined", () => {
   const membership = joinRoom(membershipFrom([myChat]), leak);
   assert.deepEqual(
     joinedRooms([myChat], rooms, membership).map((room) => room.id),
-    ["chat"],
+    ["chat", "acs-leak"],
   );
 });
 
 test("joinedRooms: skips a joined room it has no details for", () => {
-  const membership = joinRoom(membershipFrom([]), { id: "gone", isPrivate: false });
+  const membership = joinRoom(membershipFrom([]), { id: "gone" });
   assert.deepEqual(joinedRooms([], rooms, membership), []);
 });

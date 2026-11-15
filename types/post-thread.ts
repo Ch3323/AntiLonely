@@ -2,7 +2,7 @@ export type CommentSortOrder = 'oldest' | 'newest';
 
 export type ReportTargetType = 'post' | 'comment' | 'room';
 
-export type BoardMembershipStatus = 'joined' | 'requested' | 'none';
+export type BoardMembershipStatus = 'joined' | 'none';
 
 export interface RoomBoardMembershipState {
   status: BoardMembershipStatus;

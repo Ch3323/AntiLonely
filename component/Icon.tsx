@@ -39,13 +39,6 @@ const icons = {
   heart: (
     <path d="M12 20s-7.5-4.6-7.5-10.2A4.3 4.3 0 0 1 12 7.2a4.3 4.3 0 0 1 7.5 2.6C19.5 15.4 12 20 12 20z" />
   ),
-  image: (
-    <>
-      <rect x="3" y="4" width="18" height="16" rx="2.5" />
-      <circle cx="9" cy="10" r="1.8" />
-      <path d="m21 16-4.5-4.5L7 20" />
-    </>
-  ),
   lock: (
     <>
       <rect x="4" y="11" width="16" height="10" rx="2.5" />

@@ -16,6 +16,7 @@ import Icon from "@/component/Icon";
 import Tape from "@/component/Tape";
 import PostCard from "@/component/PostCard";
 import RoomOnlineChip from "@/component/RoomOnlineChip";
+import RoomPasswordModal from "@/component/RoomPasswordModal";
 import { ReportModal } from "@/component/post-thread/ReportModal";
 import { formatCount } from "@/lib/format";
 import {
@@ -230,6 +231,7 @@ export default function RoomBoardFeed({
   const [isMuted, setIsMuted] = useState(false);
   const [isRoomMenuOpen, setIsRoomMenuOpen] = useState(false);
   const [isLeaveModalOpen, setIsLeaveModalOpen] = useState(false);
+  const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
   const [isReportingRoom, setIsReportingRoom] = useState(false);
   const roomMenuRef = useRef<HTMLDivElement>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -559,24 +561,15 @@ export default function RoomBoardFeed({
       return;
     }
 
+    // A private room is joined with its password, in its own modal.
+    if (room.isPrivate) {
+      setIsPasswordModalOpen(true);
+      return;
+    }
+
     const previousMembership = membership;
     setIsMembershipPending(true);
     try {
-      if (membership.status === "requested") {
-        const result = await updateRoomMembership({
-          roomId: room.id,
-          action: "leave",
-        });
-        if (!result.ok) {
-          setMembership(previousMembership);
-          showToast(result.error);
-          return;
-        }
-        setMembership(result.data);
-        showToast("ยกเลิกคำขอเข้าร่วมห้องแล้ว");
-        return;
-      }
-
       const result = await updateRoomMembership({
         roomId: room.id,
         action: "join",
@@ -587,11 +580,7 @@ export default function RoomBoardFeed({
         return;
       }
       setMembership(result.data);
-      showToast(
-        room.isPrivate
-          ? "ส่งคำขอเข้าร่วมห้องเรียบร้อยแล้ว"
-          : `เข้าร่วม${room.name}เรียบร้อยแล้ว`
-      );
+      showToast(`เข้าร่วม${room.name}เรียบร้อยแล้ว`);
     } catch {
       setMembership(previousMembership);
       showToast("ไม่สามารถดำเนินการได้ กรุณาลองใหม่อีกครั้ง");
@@ -702,9 +691,12 @@ export default function RoomBoardFeed({
 
   const nonMemberComposerMessage = !currentUser
     ? "เข้าสู่ระบบและเข้าร่วมห้องก่อนจึงจะตั้งกระทู้ได้"
-    : membership.status === "requested"
-      ? "ส่งคำขอเข้าร่วมห้องนี้แล้ว รอการอนุมัติก่อนตั้งกระทู้"
+    : room.isPrivate
+      ? "ห้องส่วนตัว ใส่รหัสผ่านห้องเพื่อเข้าร่วม แล้วจึงจะอ่านและตั้งกระทู้ได้"
       : "เข้าร่วมห้องก่อนจึงจะตั้งกระทู้และพูดคุยในห้องนี้ได้";
+  // Non-members of a private room aren't sent its posts (getRoomBoardData);
+  // this also hides any still on screen after leaving.
+  const postsHidden = Boolean(room.isPrivate) && membership.status !== "joined";
 
   // สีเงา เทป และพื้นหลังอิโมจิ ตามประเภทห้อง เหมือนการ์ดห้องในหน้าหลัก
   const look = roomLook(room);
@@ -785,23 +777,16 @@ export default function RoomBoardFeed({
               >
                 เข้าร่วมแล้ว
               </button>
-            ) : membership.status === "requested" ? (
-              <button
-                type="button"
-                disabled={isMembershipPending}
-                onClick={handleMembershipClick}
-                className={`rounded-lg border-[1.5px] border-dashed border-edge-strong bg-cream px-4 py-[9px] text-sm font-semibold text-ink-soft hover:bg-butter hover:text-ink motion-safe:transition-colors ${disabledButtonClass}`}
-              >
-                ส่งคำขอแล้ว
-              </button>
             ) : (
               <button
                 type="button"
                 disabled={isMembershipPending}
                 onClick={handleMembershipClick}
-                className={`px-4 py-[9px] ${primaryButtonClass} ${disabledButtonClass}`}
+                aria-haspopup={room.isPrivate ? "dialog" : undefined}
+                className={`flex items-center gap-1.5 px-4 py-[9px] ${primaryButtonClass} ${disabledButtonClass}`}
               >
-                {room.isPrivate ? "ขอเข้าร่วม" : "เข้าร่วมห้อง"}
+                {room.isPrivate && <Icon name="lock" className="size-4" />}
+                เข้าร่วมห้อง
               </button>
             )}
 
@@ -972,7 +957,13 @@ export default function RoomBoardFeed({
           )}
 
           {/* แสดงโพสต์ หรือ Empty State */}
-          {posts.length === 0 ? (
+          {postsHidden ? (
+            <EmptyNote
+              icon="lock"
+              title="กระทู้ในห้องนี้เห็นได้เฉพาะสมาชิก"
+              description="ห้องส่วนตัว ขอรหัสผ่านห้องจากคนในห้อง แล้วกดเข้าร่วมห้องเพื่ออ่านกระทู้ทั้งหมด"
+            />
+          ) : posts.length === 0 ? (
             <EmptyNote
               icon="message"
               title="ยังไม่มีกระทู้ในห้องนี้"
@@ -1039,6 +1030,11 @@ export default function RoomBoardFeed({
               <p className="text-sm text-ink-soft">
                 หากออกจากห้อง {room.name} คุณจะไม่ได้รับการแจ้งเตือนและการอัปเดตใหม่ๆ จากห้องนี้
               </p>
+              {room.isPrivate && (
+                <p className="text-sm text-mist-ink">
+                  เป็นห้องส่วนตัว ถ้าอยากกลับมาต้องใช้รหัสผ่านห้องอีกครั้ง
+                </p>
+              )}
             </div>
             <div className="flex items-center justify-end gap-3 pt-2">
               <button
@@ -1058,6 +1054,18 @@ export default function RoomBoardFeed({
             </div>
           </div>
         </div>
+      )}
+
+      {isPasswordModalOpen && (
+        <RoomPasswordModal
+          room={room}
+          onClose={() => setIsPasswordModalOpen(false)}
+          onJoined={(next) => {
+            setIsPasswordModalOpen(false);
+            setMembership(next);
+            showToast(`เข้าร่วม${room.name}เรียบร้อยแล้ว`);
+          }}
+        />
       )}
 
       {/* Report Room Modal */}
