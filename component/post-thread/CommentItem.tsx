@@ -273,9 +273,18 @@ export const CommentItem = memo(function CommentItem({
         <div className="relative flex flex-col items-center self-stretch shrink-0">
           <div
             aria-hidden="true"
-            className={`${avatarClass.replace('size-9', 'size-8')} mt-0.5 z-10`}
+            className={`${avatarClass.replace('size-9', 'size-8')} mt-0.5 z-10 overflow-hidden`}
           >
-            <Icon name="user" className="size-4" />
+            {comment.author.avatarUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={comment.author.avatarUrl}
+                alt=""
+                className="size-full object-cover"
+              />
+            ) : (
+              <Icon name="user" className="size-4" />
+            )}
           </div>
           {(comment.replies.length > 0 || isReplying) && (
             <div
@@ -411,9 +420,18 @@ export const CommentItem = memo(function CommentItem({
             <div className="relative flex flex-col items-center self-stretch shrink-0">
               <div
                 aria-hidden="true"
-                className={`${avatarClass.replace('size-9', 'size-7')} mt-0.5 z-10`}
+                className={`${avatarClass.replace('size-9', 'size-7')} mt-0.5 z-10 overflow-hidden`}
               >
-                <Icon name="user" className="size-3.5" />
+                {reply.author.avatarUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={reply.author.avatarUrl}
+                    alt=""
+                    className="size-full object-cover"
+                  />
+                ) : (
+                  <Icon name="user" className="size-3.5" />
+                )}
               </div>
               {/* If this reply has children, run vertical line down to sub-branch with overlap */}
               {hasSubChildren && (

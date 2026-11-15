@@ -2,6 +2,8 @@
 
 import React, { useState } from 'react';
 import Icon from '@/component/Icon';
+import { authClient } from '@/lib/auth-client';
+
 import {
   avatarClass,
   disabledButtonClass,
@@ -33,6 +35,8 @@ export function ReplyComposer({
   inputRef,
 }: ReplyComposerProps) {
   const [value, setValue] = useState('');
+  const { data: session } = authClient.useSession();
+  const myImage = session?.user?.image;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -50,9 +54,14 @@ export function ReplyComposer({
       >
         <div
           aria-hidden="true"
-          className={avatarClass.replace('size-9', 'size-7')}
+          className={`avatarClass.replace('size-9', 'size-7')} overflow-hidden `}
         >
-          <Icon name="user" className="size-3.5" />
+          {myImage ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={myImage} alt="" className="size-full object-cover" />
+          ) : (
+            <Icon name="user" className="size-3.5" />
+          )}
         </div>
         <input
           ref={inputRef}
@@ -92,9 +101,14 @@ export function ReplyComposer({
     >
       <div
         aria-hidden="true"
-        className={avatarClass.replace('size-9', 'size-8 sm:size-9')}
+        className={`${avatarClass.replace('size-9', 'size-8 sm:size-9')} overflow-hidden`}
       >
-        <Icon name="user" className="size-4" />
+        {myImage ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={myImage} alt="" className="size-full object-cover" />
+        ) : (
+          <Icon name="user" className="size-4" />
+        )}
       </div>
       <input
         ref={inputRef}

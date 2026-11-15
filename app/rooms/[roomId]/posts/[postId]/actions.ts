@@ -141,6 +141,7 @@ async function loadPostThreadSnapshot(
             username: true,
             displayUsername: true,
             name: true,
+            image: true,
           },
         },
         reactions: {
@@ -166,6 +167,7 @@ async function loadPostThreadSnapshot(
             username: true,
             displayUsername: true,
             name: true,
+            image: true,
           },
         },
         reactions: {
@@ -237,6 +239,7 @@ export async function getPostThreadData(
               username: true,
               displayUsername: true,
               name: true,
+              image: true,
             },
           },
           reactions: {
@@ -360,6 +363,7 @@ export async function getPostThreadData(
           username: true,
           displayUsername: true,
           name: true,
+          image: true,
         },
       },
       reactions: {
