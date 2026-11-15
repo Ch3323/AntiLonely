@@ -90,16 +90,35 @@ export function HomeAutoRefresh() {
   return null;
 }
 
+const ADMIN_REFRESH_MS = 30_000;
+
+/**
+ * Admin pages: re-read reports, rooms and users about every 30 seconds while
+ * the tab is visible, so the moderation queue doesn't go stale. Open modals,
+ * filters, selections and half-filled forms are client state and stay put.
+ */
+export function AdminAutoRefresh() {
+  const router = useRouter();
+  const refresh = () => router.refresh();
+  useVisibleInterval(ADMIN_REFRESH_MS, refresh, refresh);
+  return null;
+}
+
 const NOTIFICATIONS_PROBE_MS = 15_000;
+
+// The count can stay the same while the list changes (one new, one read in
+// the same window), so the list is also re-read every few probes regardless.
+const NOTIFICATIONS_FULL_EVERY = 4;
 
 /**
  * Notifications page: asks for the unread count like the header's bell does
- * and re-reads the list only when that number moves, plus once whenever the
- * tab comes back.
+ * and re-reads the list when that number moves, about once a minute anyway,
+ * and whenever the tab comes back.
  */
 export function NotificationsAutoRefresh() {
   const router = useRouter();
   const lastCount = useRef<number | null>(null);
+  const probesSinceRefresh = useRef(0);
 
   const probe = () => {
     fetch("/api/notifications/unread-count", { cache: "no-store" })
@@ -108,7 +127,14 @@ export function NotificationsAutoRefresh() {
         if (!data || typeof data.count !== "number") return;
         const previous = lastCount.current;
         lastCount.current = data.count;
-        if (previous !== null && previous !== data.count) router.refresh();
+        probesSinceRefresh.current += 1;
+        if (
+          (previous !== null && previous !== data.count) ||
+          probesSinceRefresh.current >= NOTIFICATIONS_FULL_EVERY
+        ) {
+          probesSinceRefresh.current = 0;
+          router.refresh();
+        }
       })
       .catch(() => {
         // Try again on the next tick.
@@ -123,6 +149,7 @@ export function NotificationsAutoRefresh() {
   }, []);
 
   useVisibleInterval(NOTIFICATIONS_PROBE_MS, probe, () => {
+    probesSinceRefresh.current = 0;
     router.refresh();
     probe();
   });

@@ -3,6 +3,7 @@
 import { headers } from "next/headers";
 import { auth } from "./auth";
 import { prisma } from "./prisma";
+import { signalMessagesChanged } from "./room-live-notify";
 import { suspensionEndsWithinLimit } from "./sanctions";
 
 export type SanctionResult = { ok: true } | { ok: false; error: string };
@@ -67,6 +68,16 @@ export async function banUser(input: {
   const permission = await checkPermission(input.userId, "ban");
   if (!permission.ok) return permission;
 
+  // Which posts the ban hides, so open rooms and threads can drop them.
+  const hiddenIds = input.deletePosts
+    ? (
+        await prisma.message.findMany({
+          where: { authorId: input.userId, status: { not: "deleted" } },
+          select: { id: true },
+        })
+      ).map((message) => message.id)
+    : [];
+
   await prisma.$transaction([
     prisma.sanction.create({
       data: { type: "ban", reason, endAt: null, userId: input.userId, issuedById: permission.issuedById },
@@ -78,6 +89,7 @@ export async function banUser(input: {
       ? [prisma.message.updateMany({ where: { authorId: input.userId }, data: { status: "deleted" } })]
       : []),
   ]);
+  signalMessagesChanged(hiddenIds);
   // TODO: send the email when an email service is set up (input.notifyByEmail).
   return { ok: true };
 }

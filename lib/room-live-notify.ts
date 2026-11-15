@@ -2,20 +2,67 @@
 // the room or the thread open see it. The send runs after the response is
 // out (`after`), so it never slows the person who made the change down.
 import { after } from "next/server";
-import { sendRoomLiveSignal } from "./room-live-server";
+import { prisma } from "./prisma";
+import {
+  planMessageSignals,
+  sendRoomLiveSignal,
+  type MessageLink,
+} from "./room-live-server";
 
-export function signalRoomChange(input: {
+type ChangeInput = {
   roomId: string;
   /** The thread (root post id) that changed, if any. */
   postId?: string | null;
   /** Whether the room board's view changed (posts, their reactions or reply
    * counts, members). Comment edits and comment reactions don't. */
   board: boolean;
-}): void {
+  /** Every page of the room should re-read (room renamed or archived). */
+  wholeRoom?: boolean;
+};
+
+function schedule(task: () => Promise<unknown>): void {
   try {
-    after(() => sendRoomLiveSignal(input).then(() => undefined));
+    after(() => task().then(
+      () => undefined,
+      () => undefined
+    ));
   } catch {
-    // Outside a request (scripts, tests): send right away instead.
-    void sendRoomLiveSignal(input);
+    // Outside a request (scripts, tests): run right away instead.
+    void task().catch(() => undefined);
   }
+}
+
+export function signalRoomChange(input: ChangeInput): void {
+  schedule(() => sendRoomLiveSignal(input));
+}
+
+const MAX_ANCESTOR_ROUNDS = 8;
+
+/**
+ * Signals the threads that some changed messages belong to (admin deletes,
+ * a ban that removes someone's posts). Looks the messages and their parents
+ * up after the response, so the admin's action isn't slowed down.
+ */
+export function signalMessagesChanged(messageIds: readonly string[]): void {
+  if (messageIds.length === 0) return;
+  schedule(async () => {
+    const known = new Map<string, MessageLink>();
+    let missing = [...new Set(messageIds)];
+    for (let round = 0; round < MAX_ANCESTOR_ROUNDS && missing.length > 0; round++) {
+      const rows = await prisma.message.findMany({
+        where: { id: { in: missing } },
+        select: { id: true, roomId: true, parentId: true },
+      });
+      for (const row of rows) known.set(row.id, row);
+      missing = [
+        ...new Set(
+          rows
+            .map((row) => row.parentId)
+            .filter((id): id is string => Boolean(id) && !known.has(id as string))
+        ),
+      ];
+    }
+    const plan = planMessageSignals(messageIds, known);
+    await Promise.all(plan.map((signal) => sendRoomLiveSignal(signal)));
+  });
 }

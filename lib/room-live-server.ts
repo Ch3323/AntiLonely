@@ -99,7 +99,12 @@ const SEND_TIMEOUT_MS = 3000;
  * only means other people see the change on their next re-fetch or reload.
  */
 export async function sendRoomLiveSignal(
-  input: { roomId: string; postId?: string | null; board: boolean },
+  input: {
+    roomId: string;
+    postId?: string | null;
+    board: boolean;
+    wholeRoom?: boolean;
+  },
   deps: { env?: RealtimeEnv; fetchImpl?: typeof fetch } = {}
 ): Promise<boolean> {
   const env = deps.env ?? readEnv();
@@ -111,6 +116,7 @@ export async function sendRoomLiveSignal(
       ? liveThreadTokenFor(env.secret, input.roomId, input.postId)
       : null,
     board: input.board,
+    wholeRoom: input.wholeRoom,
   });
   try {
     const res = await doFetch(broadcastUrlFor(env.url, topic), {
@@ -124,4 +130,69 @@ export async function sendRoomLiveSignal(
   } catch {
     return false;
   }
+}
+
+/** One message as the signal planner needs it. */
+export type MessageLink = { id: string; roomId: string; parentId: string | null };
+
+/** Past this many changed threads in one room, signal the whole room once. */
+export const MAX_THREAD_SIGNALS_PER_ROOM = 10;
+
+export type PlannedSignal = {
+  roomId: string;
+  postId: string | null;
+  board: boolean;
+  wholeRoom: boolean;
+};
+
+/**
+ * Turns a batch of changed messages (an admin deleting reported content, a
+ * ban that removes someone's posts) into signals: one per thread that
+ * changed, or one for the whole room when too many threads changed at once.
+ * `known` holds the changed messages and their ancestors, so each can be
+ * walked up to its root post; a message whose root isn't known signals the
+ * whole room rather than being missed.
+ */
+export function planMessageSignals(
+  changedIds: readonly string[],
+  known: ReadonlyMap<string, MessageLink>
+): PlannedSignal[] {
+  const threadsByRoom = new Map<string, Set<string>>();
+  const wholeRooms = new Set<string>();
+
+  for (const id of changedIds) {
+    let message = known.get(id);
+    if (!message) continue;
+    const roomId = message.roomId;
+    const seen = new Set<string>();
+    while (message?.parentId && !seen.has(message.id)) {
+      seen.add(message.id);
+      message = known.get(message.parentId);
+    }
+    if (!message || message.parentId) {
+      wholeRooms.add(roomId);
+      continue;
+    }
+    let threads = threadsByRoom.get(roomId);
+    if (!threads) {
+      threads = new Set();
+      threadsByRoom.set(roomId, threads);
+    }
+    threads.add(message.id);
+  }
+
+  const plan: PlannedSignal[] = [];
+  for (const [roomId, threads] of threadsByRoom) {
+    if (wholeRooms.has(roomId) || threads.size > MAX_THREAD_SIGNALS_PER_ROOM) {
+      wholeRooms.add(roomId);
+      continue;
+    }
+    for (const postId of threads) {
+      plan.push({ roomId, postId, board: true, wholeRoom: false });
+    }
+  }
+  for (const roomId of wholeRooms) {
+    plan.push({ roomId, postId: null, board: true, wholeRoom: true });
+  }
+  return plan;
 }

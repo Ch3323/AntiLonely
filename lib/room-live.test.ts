@@ -11,7 +11,10 @@ import {
   buildRoomLiveConfig,
   liveThreadTokenFor,
   liveTopicFor,
+  MAX_THREAD_SIGNALS_PER_ROOM,
+  planMessageSignals,
   sendRoomLiveSignal,
+  type MessageLink,
 } from "./room-live-server.ts";
 import { presenceTopicFor } from "./room-presence-server.ts";
 
@@ -218,4 +221,58 @@ test("sending without Realtime configured, or failing, is quiet", async () => {
     ),
     false
   );
+});
+
+test("a whole-room signal reaches every page of the room", () => {
+  const all = makeRoomLiveSignal({ thread: "tok", board: false, wholeRoom: true });
+  assert.deepEqual(all, { t: "*", b: 1 });
+  assert.deepEqual(parseRoomLiveSignal(all), all);
+  assert.equal(signalConcernsPage(all, null), true);
+  assert.equal(signalConcernsPage(all, "any-thread"), true);
+});
+
+function links(...rows: MessageLink[]): Map<string, MessageLink> {
+  return new Map(rows.map((row) => [row.id, row]));
+}
+
+test("changed messages map to their threads, one signal per thread", () => {
+  const known = links(
+    { id: "p1", roomId: "r1", parentId: null },
+    { id: "c1", roomId: "r1", parentId: "p1" },
+    { id: "c2", roomId: "r1", parentId: "c1" },
+    { id: "p2", roomId: "r2", parentId: null }
+  );
+  const plan = planMessageSignals(["c2", "c1", "p2"], known);
+  assert.deepEqual(
+    plan.map((s) => [s.roomId, s.postId, s.wholeRoom]).sort(),
+    [
+      ["r1", "p1", false],
+      ["r2", "p2", false],
+    ]
+  );
+});
+
+test("a message whose root can't be found signals its whole room", () => {
+  const known = links({ id: "c9", roomId: "r1", parentId: "missing" });
+  assert.deepEqual(planMessageSignals(["c9"], known), [
+    { roomId: "r1", postId: null, board: true, wholeRoom: true },
+  ]);
+  // Unknown ids are skipped, and a parent loop doesn't hang.
+  const loop = links(
+    { id: "a", roomId: "r1", parentId: "b" },
+    { id: "b", roomId: "r1", parentId: "a" }
+  );
+  assert.equal(planMessageSignals(["nope"], loop).length, 0);
+  assert.equal(planMessageSignals(["a"], loop)[0].wholeRoom, true);
+});
+
+test("too many threads in one room become one whole-room signal", () => {
+  const rows: MessageLink[] = [];
+  for (let i = 0; i <= MAX_THREAD_SIGNALS_PER_ROOM; i++) {
+    rows.push({ id: `p${i}`, roomId: "r1", parentId: null });
+  }
+  const plan = planMessageSignals(rows.map((r) => r.id), links(...rows));
+  assert.deepEqual(plan, [
+    { roomId: "r1", postId: null, board: true, wholeRoom: true },
+  ]);
 });
