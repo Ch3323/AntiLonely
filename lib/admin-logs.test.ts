@@ -2,9 +2,11 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
   buildDashboardActivities,
+  buildModerationHistory,
   buildSummaryActivityFeed,
   formatActivityTime,
   formatLogTimestamp,
+  formatSanctionAction,
   getReportReasonLabel,
   type AdminSanctionType,
 } from './admin-logs.ts';
@@ -176,5 +178,92 @@ describe('admin-logs helpers', () => {
     assert.equal(feed.items[1].subtitle, 'เหตุผล: คุกคาม · ปลดแล้ว');
     assert.equal(feed.items[4].subtitle, 'หมดอายุแล้ว');
     assert.equal(feed.items[3].subtitle, 'เหตุผล: เนื้อหาไม่เหมาะสม: ทดสอบ');
+  });
+
+  it('formats sanction action badges and builds moderation history from sanctions', () => {
+    assert.deepEqual(
+      formatSanctionAction(
+        {
+          sanctionType: 'suspension',
+          endAt: new Date(NOW_MS + 5 * 24 * 60 * 60 * 1000).toISOString(),
+          liftedAt: null,
+        },
+        NOW_MS,
+      ),
+      { base: 'ระงับผู้ใช้', label: 'ระงับผู้ใช้ · เหลือ 5 วัน', tone: 'warn' },
+    );
+
+    assert.deepEqual(
+      formatSanctionAction(
+        {
+          sanctionType: 'suspension',
+          endAt: new Date(NOW_MS - 1000).toISOString(),
+          liftedAt: null,
+        },
+        NOW_MS,
+      ),
+      { base: 'ระงับผู้ใช้', label: 'ระงับผู้ใช้ · หมดอายุแล้ว', tone: 'neutral' },
+    );
+
+    assert.deepEqual(
+      formatSanctionAction(
+        {
+          sanctionType: 'suspension',
+          endAt: new Date(NOW_MS + 5 * 24 * 60 * 60 * 1000).toISOString(),
+          liftedAt: NOW_ISO,
+        },
+        NOW_MS,
+      ),
+      { base: 'ระงับผู้ใช้', label: 'ระงับผู้ใช้ · ปลดแล้ว', tone: 'neutral' },
+    );
+
+    assert.deepEqual(
+      formatSanctionAction(
+        { sanctionType: 'ban', endAt: null, liftedAt: null },
+        NOW_MS,
+      ),
+      { base: 'แบนผู้ใช้', label: 'แบนผู้ใช้ · ถาวร', tone: 'danger' },
+    );
+
+    assert.deepEqual(
+      formatSanctionAction(
+        { sanctionType: 'warning', endAt: null, liftedAt: null },
+        NOW_MS,
+      ),
+      { base: 'ตักเตือนผู้ใช้', label: 'ตักเตือนผู้ใช้', tone: 'warn' },
+    );
+
+    const history = buildModerationHistory([
+      {
+        id: 's-old',
+        type: 'warning',
+        reason: '   ',
+        endAt: null,
+        liftedAt: null,
+        createdAt: new Date(NOW_MS - 60_000),
+        user: { id: 'u1', username: 'u1', displayUsername: 'anon_1', name: 'anon_1' },
+        issuedBy: null,
+      },
+      {
+        id: 's-new',
+        type: 'ban',
+        reason: 'สแปมซ้ำ',
+        endAt: null,
+        liftedAt: null,
+        createdAt: new Date(NOW_MS),
+        user: { id: 'u2', username: 'u2', displayUsername: 'anon_2', name: 'anon_2' },
+        issuedBy: { id: 'a1', username: 'a1', displayUsername: 'admin_01', name: 'admin_01' },
+      },
+    ]);
+
+    assert.equal(history.length, 2);
+    assert.equal(history[0].id, 's-new');
+    assert.equal(history[0].admin, 'admin_01');
+    assert.equal(history[0].target, 'anon_2');
+    assert.equal(history[0].detail, 'สแปมซ้ำ');
+
+    assert.equal(history[1].id, 's-old');
+    assert.equal(history[1].admin, 'ระบบ/ผู้ดูแล');
+    assert.equal(history[1].detail, '-');
   });
 });

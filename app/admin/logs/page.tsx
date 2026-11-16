@@ -5,7 +5,10 @@ import { notFound, redirect } from "next/navigation";
 import { AdminSkeleton } from "@/component/PageSkeletons";
 import AdminLogsClient from "@/component/admin/AdminLogsClient";
 import { auth } from "@/lib/auth";
-import { buildSummaryActivityFeed } from "@/lib/admin-logs";
+import {
+  buildModerationHistory,
+  buildSummaryActivityFeed,
+} from "@/lib/admin-logs";
 import { fetchAdminLogSources } from "@/lib/admin-logs-server";
 
 const LOG_FETCH_LIMIT = 250;
@@ -41,6 +44,13 @@ async function AdminLogsData() {
     perSourceLimit: LOG_FETCH_LIMIT,
     nowMs: now.getTime(),
   });
+  const moderationLogs = buildModerationHistory(sources.sanctions);
 
-  return <AdminLogsClient feed={feed} serverTime={now.toISOString()} />;
+  return (
+    <AdminLogsClient
+      feed={feed}
+      moderationLogs={moderationLogs}
+      serverTime={now.toISOString()}
+    />
+  );
 }

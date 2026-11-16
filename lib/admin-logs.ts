@@ -27,6 +27,7 @@ const LOG_TIME_FORMATTER = new Intl.DateTimeFormat('en-GB', {
 export type AdminSanctionType = 'warning' | 'mute' | 'suspension' | 'ban';
 export type ActivityCategory = 'user' | 'admin';
 export type DashboardActivityKind = 'room' | 'report' | 'sanction';
+export type ActionBadgeTone = 'warn' | 'danger' | 'neutral';
 
 export interface DashboardActivityItem {
   id: string;
@@ -43,6 +44,17 @@ export interface SummaryActivityItem {
   category: ActivityCategory;
   title: string;
   subtitle?: string;
+}
+
+export interface ModerationHistoryItem {
+  id: string;
+  createdAt: string;
+  admin: string;
+  sanctionType: AdminSanctionType;
+  endAt: string | null;
+  liftedAt: string | null;
+  target: string;
+  detail: string;
 }
 
 export interface SummaryActivityFeed {
@@ -319,4 +331,60 @@ export function buildSummaryActivityFeed(input: {
     ),
     perSourceLimit,
   };
+}
+
+/** Resolves the action badge label, base verb, and tone for a sanction history row. */
+export function formatSanctionAction(
+  item: Pick<ModerationHistoryItem, 'sanctionType' | 'endAt' | 'liftedAt'>,
+  nowMs: number,
+): { base: string; label: string; tone: ActionBadgeTone } {
+  const base = SANCTION_ACTION_LABELS[item.sanctionType];
+
+  if (item.liftedAt) {
+    return { base, label: `${base} · ปลดแล้ว`, tone: 'neutral' };
+  }
+
+  if (item.sanctionType === 'ban') {
+    return {
+      base,
+      label: item.endAt ? base : `${base} · ถาวร`,
+      tone: 'danger',
+    };
+  }
+
+  if (item.sanctionType === 'suspension' && item.endAt) {
+    const endMs = Date.parse(item.endAt);
+    if (!Number.isNaN(endMs)) {
+      const remainingMs = endMs - nowMs;
+      if (remainingMs <= 0) {
+        return { base, label: `${base} · หมดอายุแล้ว`, tone: 'neutral' };
+      }
+      const remainingDays = Math.ceil(remainingMs / DAY_MS);
+      return {
+        base,
+        label: `${base} · เหลือ ${remainingDays} วัน`,
+        tone: 'warn',
+      };
+    }
+  }
+
+  return { base, label: base, tone: 'warn' };
+}
+
+/** Builds detailed moderation history rows from Sanction records for /admin/logs. */
+export function buildModerationHistory(
+  sanctions: readonly SanctionLogInput[],
+): ModerationHistoryItem[] {
+  return [...sanctions]
+    .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+    .map((sanction) => ({
+      id: sanction.id,
+      createdAt: sanction.createdAt.toISOString(),
+      admin: resolveActor(sanction.issuedBy, 'ระบบ/ผู้ดูแล'),
+      sanctionType: sanction.type,
+      endAt: sanction.endAt ? sanction.endAt.toISOString() : null,
+      liftedAt: sanction.liftedAt ? sanction.liftedAt.toISOString() : null,
+      target: resolveAuthorAlias(sanction.user),
+      detail: sanction.reason.trim() || '-',
+    }));
 }
