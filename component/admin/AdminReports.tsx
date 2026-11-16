@@ -2,6 +2,11 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import BanUserModal from "@/component/admin/BanUserModal";
+import { type SanctionTarget } from "@/component/admin/SanctionParts";
+import SuspendUserModal from "@/component/admin/SuspendUserModal";
+import WarnUserModal from "@/component/admin/WarnUserModal";
 import {
   dismissReports,
   deleteReportedMessages,
@@ -12,6 +17,9 @@ type ReportRow = {
   content: string;
   room: string;
   author: string;
+  authorId: string | null;
+  authorEmail: string | null;
+  authorRole: string | null;
   reason: string;
   count: number;
   status: string;
@@ -20,6 +28,8 @@ type ReportRow = {
 
 type AdminReportsProps = {
   reports: ReportRow[];
+  viewerId: string;
+  viewerRole: "admin" | "moderator";
 };
 
 type StatusFilter = "pending" | "resolved" | "dismissed";
@@ -59,7 +69,12 @@ function getTimeAgo(dateString: string) {
   return `${days}d`;
 }
 
-export default function AdminReports({ reports }: AdminReportsProps) {
+export default function AdminReports({
+  reports,
+  viewerId,
+  viewerRole,
+}: AdminReportsProps) {
+  const router = useRouter();
   const [status, setStatus] = useState<StatusFilter>("pending");
   const [reason, setReason] = useState("all");
   const [search, setSearch] = useState("");
@@ -67,6 +82,11 @@ export default function AdminReports({ reports }: AdminReportsProps) {
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
   const [detail, setDetail] = useState<ReportRow | null>(null);
+  const [suspendTarget, setSuspendTarget] = useState<SanctionTarget | null>(
+    null,
+  );
+  const [warnTarget, setWarnTarget] = useState<SanctionTarget | null>(null);
+  const [banTarget, setBanTarget] = useState<SanctionTarget | null>(null);
 
   // จำนวนรายงานแยกตามสถานะ
   const statusCounts = useMemo(() => {
@@ -503,15 +523,105 @@ export default function AdminReports({ reports }: AdminReportsProps) {
               </div>
             </div>
 
+            {detail.authorId &&
+              detail.authorId !== viewerId &&
+              detail.authorRole !== "admin" && (
+                <div className="mt-6 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!detail.authorId) return;
+                      setWarnTarget({
+                        id: detail.authorId,
+                        username: detail.author,
+                        email: detail.authorEmail ?? "-",
+                      });
+                      setDetail(null);
+                    }}
+                    className="flex-1 rounded-lg border border-edge-strong bg-cream px-4 py-2.5 text-sm font-semibold text-ink hover:bg-butter"
+                  >
+                    ตักเตือนผู้ใช้
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!detail.authorId) return;
+                      setSuspendTarget({
+                        id: detail.authorId,
+                        username: detail.author,
+                        email: detail.authorEmail ?? "-",
+                      });
+                      setDetail(null);
+                    }}
+                    className="flex-1 rounded-lg border border-butter-edge bg-butter px-4 py-2.5 text-sm font-semibold text-ink hover:bg-highlight"
+                  >
+                    ระงับผู้ใช้
+                  </button>
+                  {viewerRole === "admin" && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!detail.authorId) return;
+                        setBanTarget({
+                          id: detail.authorId,
+                          username: detail.author,
+                          email: detail.authorEmail ?? "-",
+                        });
+                        setDetail(null);
+                      }}
+                      className="flex-1 rounded-lg border border-red-300 bg-red-50 px-4 py-2.5 text-sm font-semibold text-red-700 hover:bg-red-100"
+                    >
+                      แบนผู้ใช้
+                    </button>
+                  )}
+                </div>
+              )}
+
             <button
               type="button"
               onClick={() => setDetail(null)}
-              className="mt-6 w-full rounded-lg bg-ink py-3 text-sm font-medium text-white hover:bg-ink-soft"
+              className="mt-3 w-full rounded-lg bg-ink py-3 text-sm font-medium text-white hover:bg-ink-soft"
             >
               ปิด
             </button>
           </div>
         </div>
+      )}
+
+      {warnTarget && (
+        <WarnUserModal
+          key={warnTarget.id}
+          user={warnTarget}
+          onClose={() => setWarnTarget(null)}
+          onDone={() => {
+            setNotice(`ตักเตือนผู้ใช้ ${warnTarget.username} เรียบร้อยแล้ว`);
+            router.refresh();
+          }}
+        />
+      )}
+
+      {suspendTarget && (
+        <SuspendUserModal
+          key={suspendTarget.id}
+          user={suspendTarget}
+          onClose={() => setSuspendTarget(null)}
+          onDone={() => {
+            setNotice(`ระงับผู้ใช้ ${suspendTarget.username} เรียบร้อยแล้ว`);
+            router.refresh();
+          }}
+        />
+      )}
+
+      {banTarget && (
+        <BanUserModal
+          key={banTarget.id}
+          user={banTarget}
+          onClose={() => setBanTarget(null)}
+          onDone={() => {
+            setNotice(`แบนผู้ใช้ ${banTarget.username} เรียบร้อยแล้ว`);
+            router.refresh();
+          }}
+        />
       )}
     </div>
   );

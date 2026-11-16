@@ -1,8 +1,15 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { auth } from "./auth";
-import { banEmail, type EmailMessage, sendEmail, suspensionEmail } from "./email";
+import {
+  banEmail,
+  type EmailMessage,
+  sendEmail,
+  suspensionEmail,
+  warningSanctionEmail,
+} from "./email";
 import { prisma } from "./prisma";
 import { signalMessagesChanged } from "./room-live-notify";
 import { formatThaiDate, suspensionEndsWithinLimit } from "./sanctions";
@@ -11,23 +18,76 @@ export type SanctionResult = { ok: true } | { ok: false; error: string };
 
 const MAX_REASON_LENGTH = 1000;
 
-// Who may do what: moderators and admins can suspend; only admins can ban.
+// Who may do what: moderators and admins can warn/suspend; only admins can ban.
 // Nobody can sanction themselves or an admin.
 async function checkPermission(
   targetUserId: string,
-  action: "suspend" | "ban",
-): Promise<{ ok: true; issuedById: string } | { ok: false; error: string }> {
+  action: "warn" | "suspend" | "ban",
+): Promise<
+  | { ok: true; issuedById: string; targetEmail: string }
+  | { ok: false; error: string }
+> {
   const session = await auth.api.getSession({ headers: await headers() });
   const role = session?.user.role;
   if (!session || (role !== "admin" && (action === "ban" || role !== "moderator"))) {
     return { ok: false, error: "คุณไม่มีสิทธิ์ทำรายการนี้" };
   }
-  if (session.user.id === targetUserId) return { ok: false, error: "ระงับหรือแบนบัญชีตัวเองไม่ได้" };
+  if (session.user.id === targetUserId) return { ok: false, error: "ตักเตือน ระงับ หรือแบนบัญชีตัวเองไม่ได้" };
 
-  const target = await prisma.user.findUnique({ where: { id: targetUserId }, select: { role: true } });
+  const target = await prisma.user.findUnique({
+    where: { id: targetUserId },
+    select: { role: true, email: true },
+  });
   if (!target) return { ok: false, error: "ไม่พบผู้ใช้นี้" };
-  if (target.role === "admin") return { ok: false, error: "ระงับหรือแบนผู้ดูแลระบบไม่ได้" };
-  return { ok: true, issuedById: session.user.id };
+  if (target.role === "admin") return { ok: false, error: "ตักเตือน ระงับ หรือแบนผู้ดูแลระบบไม่ได้" };
+  return { ok: true, issuedById: session.user.id, targetEmail: target.email };
+}
+
+export async function warnUser(input: {
+  userId: string;
+  reason: string;
+  notifyByEmail: boolean;
+}): Promise<SanctionResult> {
+  const reason = input.reason.trim().slice(0, MAX_REASON_LENGTH);
+  if (!reason) return { ok: false, error: "ต้องระบุเหตุผลในการตักเตือน" };
+
+  const permission = await checkPermission(input.userId, "warn");
+  if (!permission.ok) return permission;
+
+  await prisma.$transaction(async (tx) => {
+    const sanction = await tx.sanction.create({
+      data: {
+        type: "warning",
+        reason,
+        endAt: null,
+        userId: input.userId,
+        issuedById: permission.issuedById,
+      },
+      select: { id: true },
+    });
+    await tx.notification.create({
+      data: {
+        userId: input.userId,
+        type: "report",
+        sanctionId: sanction.id,
+      },
+    });
+  });
+
+  if (input.notifyByEmail) {
+    try {
+      await sendEmail(warningSanctionEmail(permission.targetEmail, reason));
+    } catch (error) {
+      console.error("[sanctions] Could not send warning email", error);
+    }
+  }
+
+  revalidatePath("/admin");
+  revalidatePath("/admin/users");
+  revalidatePath("/admin/reports");
+  revalidatePath("/admin/logs");
+  revalidatePath("/notifications");
+  return { ok: true };
 }
 
 // Tells the person by email. The sanction has already been saved, so a mail
@@ -74,6 +134,11 @@ export async function suspendUser(input: {
       suspensionEmail({ to, reason, rulesUrl, until: formatThaiDate(endAt) }),
     );
   }
+
+  revalidatePath("/admin");
+  revalidatePath("/admin/users");
+  revalidatePath("/admin/reports");
+  revalidatePath("/admin/logs");
   return { ok: true };
 }
 
@@ -114,5 +179,10 @@ export async function banUser(input: {
   if (input.notifyByEmail) {
     await notifyByEmail(input.userId, (to, rulesUrl) => banEmail({ to, reason, rulesUrl }));
   }
+
+  revalidatePath("/admin");
+  revalidatePath("/admin/users");
+  revalidatePath("/admin/reports");
+  revalidatePath("/admin/logs");
   return { ok: true };
 }

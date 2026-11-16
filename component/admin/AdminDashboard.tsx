@@ -1,3 +1,10 @@
+import Link from "next/link";
+import {
+  formatLogTimestamp,
+  type DashboardActivityItem,
+  type DashboardActivityKind,
+} from "@/lib/admin-logs";
+
 type DashboardStats = {
   totalUsers: number;
   activeRooms: number;
@@ -5,20 +12,12 @@ type DashboardStats = {
   pendingReports: number;
 };
 
-type DashboardActivity = {
-  id: string;
-  type: "room" | "report";
-  text: string;
-  createdAt: Date;
-  timeAgo: string;
-};
-
 type AdminDashboardProps = {
   stats: DashboardStats;
   chartLabels: string[];
   usersSeries: number[];
   postsSeries: number[];
-  activities: DashboardActivity[];
+  activities: DashboardActivityItem[];
 };
 
 const numberFormat = new Intl.NumberFormat("en-US");
@@ -138,11 +137,12 @@ function PostsChart({
 }
 
 // ไอคอนกิจกรรม
-function ActivityIcon({ type }: { type: "room" | "report" }) {
+function ActivityIcon({ kind }: { kind: DashboardActivityKind }) {
   return (
     <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-butter text-ink-soft">
-      {type === "room" ? (
+      {kind === "room" && (
         <svg
+          aria-hidden="true"
           width="17"
           height="17"
           viewBox="0 0 24 24"
@@ -154,8 +154,10 @@ function ActivityIcon({ type }: { type: "room" | "report" }) {
         >
           <path d="M4 5h16v12H8l-4 3V5z" />
         </svg>
-      ) : (
+      )}
+      {kind === "report" && (
         <svg
+          aria-hidden="true"
           width="17"
           height="17"
           viewBox="0 0 24 24"
@@ -168,6 +170,23 @@ function ActivityIcon({ type }: { type: "room" | "report" }) {
           <path d="M12 3 2.8 19h18.4L12 3z" />
           <path d="M12 9v4" />
           <path d="M12 16h.01" />
+        </svg>
+      )}
+      {kind === "sanction" && (
+        <svg
+          aria-hidden="true"
+          width="17"
+          height="17"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+          <circle cx="9" cy="7" r="4" />
+          <line x1="22" y1="11" x2="16" y2="11" />
         </svg>
       )}
     </div>
@@ -277,9 +296,22 @@ export default function AdminDashboard({
 
       {/* Recent Activities */}
       <section className="mt-6 rounded-[12px] border border-edge-strong bg-white px-6 py-6">
-        <h2 className="mb-4 text-base font-bold text-ink">
-          กิจกรรมล่าสุด
-        </h2>
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <h2 className="text-lg font-bold text-ink">กิจกรรมล่าสุด</h2>
+            <p className="mt-0.5 text-[13px] text-ink-soft">
+              ติดตามความเคลื่อนไหวของผู้ใช้และผู้ดูแล
+            </p>
+          </div>
+
+          <Link
+            href="/admin/logs"
+            className="inline-flex items-center gap-1.5 rounded-md bg-ink px-4 py-2 text-[13px] font-bold text-white hover:bg-ink/90 motion-safe:transition-colors motion-safe:duration-100"
+          >
+            <span>ดูกิจกรรมทั้งหมด</span>
+            <span aria-hidden="true">→</span>
+          </Link>
+        </div>
 
         {activities.length > 0 ? (
           <div>
@@ -292,15 +324,22 @@ export default function AdminDashboard({
                     : ""
                 }`}
               >
-                <ActivityIcon type={activity.type} />
+                <ActivityIcon kind={activity.kind} />
 
-                <p className="min-w-0 flex-1 truncate text-sm text-ink">
+                <p
+                  title={activity.text}
+                  className="min-w-0 flex-1 truncate text-sm text-ink"
+                >
                   {activity.text}
                 </p>
 
-                <span className="shrink-0 text-xs text-ink-soft">
+                <time
+                  dateTime={activity.createdAt}
+                  title={formatLogTimestamp(activity.createdAt)}
+                  className="shrink-0 text-xs text-ink-soft"
+                >
                   {activity.timeAgo}
-                </span>
+                </time>
               </div>
             ))}
           </div>

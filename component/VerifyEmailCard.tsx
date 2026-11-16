@@ -7,7 +7,7 @@ import AuthCard, { AuthLink } from "@/component/AuthCard";
 import Spinner from "@/component/Spinner";
 import { authClient } from "@/lib/auth-client";
 import { authErrorMessage } from "@/lib/auth-errors";
-import { VERIFY_LINK_LIFETIME_SECONDS } from "@/lib/email";
+import { VERIFY_LINK_LIFETIME_SECONDS } from "@/lib/email-constants";
 import {
   forgetPendingEmail,
   readPendingEmail,
