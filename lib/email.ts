@@ -131,3 +131,58 @@ export function verifyEmailMessage(to: string, url: string): EmailMessage {
     ].join("\n"),
   };
 }
+
+// What a suspension or ban email needs. `until` is already formatted for
+// reading (this file has no imports), `reason` may be empty, and `rulesUrl`
+// points at the community rules.
+type SanctionEmailInput = {
+  to: string;
+  reason: string;
+  rulesUrl: string;
+};
+
+function sanctionReasonLines(reason: string): string[] {
+  const trimmed = reason.trim();
+  return trimmed ? ["เหตุผลจากทีมงาน:", trimmed, ""] : [];
+}
+
+// Sent when a moderator or admin suspends an account and leaves "แจ้งเตือน
+// ผู้ใช้ทางอีเมล" ticked.
+export function suspensionEmail(
+  input: SanctionEmailInput & { until: string },
+): EmailMessage {
+  return {
+    to: input.to,
+    subject: "บัญชี AntiLonely ของคุณถูกระงับชั่วคราว",
+    text: [
+      "สวัสดี",
+      "",
+      `บัญชี AntiLonely ที่ใช้อีเมลนี้ถูกระงับชั่วคราว ถึงวันที่ ${input.until}`,
+      "ระหว่างนี้จะเข้าสู่ระบบไม่ได้ และจะกลับมาใช้งานได้ตามปกติเมื่อครบกำหนด",
+      "",
+      ...sanctionReasonLines(input.reason),
+      `อ่านกติกาของชุมชนได้ที่ ${input.rulesUrl}`,
+      "",
+      "AntiLonely",
+    ].join("\n"),
+  };
+}
+
+// Sent when an admin bans an account and leaves "แจ้งเตือนผู้ใช้ทางอีเมล"
+// ticked.
+export function banEmail(input: SanctionEmailInput): EmailMessage {
+  return {
+    to: input.to,
+    subject: "บัญชี AntiLonely ของคุณถูกแบน",
+    text: [
+      "สวัสดี",
+      "",
+      "บัญชี AntiLonely ที่ใช้อีเมลนี้ถูกแบนถาวร และจะเข้าสู่ระบบไม่ได้อีก",
+      "",
+      ...sanctionReasonLines(input.reason),
+      `อ่านกติกาของชุมชนได้ที่ ${input.rulesUrl}`,
+      "",
+      "AntiLonely",
+    ].join("\n"),
+  };
+}
