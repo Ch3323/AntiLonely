@@ -118,3 +118,63 @@ export function countUnreadNotifications(
 ): number {
   return notifications.filter((item) => !item.isRead).length;
 }
+
+export interface DbNotificationRow {
+  id: string;
+  type: string;
+  isRead: boolean;
+  createdAt: Date;
+  sanction?: { type?: string; reason: string } | null;
+}
+
+const DEFAULT_NOTIFICATION_TEXT: Record<
+  string,
+  { actionText: string; category: NotificationItem['type'] }
+> = {
+  reply: { actionText: 'มีคนตอบกระทู้ของคุณ', category: 'reply' },
+  mention: { actionText: 'มีคนกล่าวถึงคุณ', category: 'mention' },
+  reaction: { actionText: 'มีคนแสดงรีแอคชันกับกระทู้ของคุณ', category: 'reaction' },
+  report: { actionText: 'มีการอัปเดตเกี่ยวกับรายงาน', category: 'report' },
+};
+
+/**
+ * Maps DB notifications to UI items and enriches notifications linked to a
+ * `Sanction` via `sanctionId` with the warning badge and reason.
+ */
+export function mapDbNotificationsToItems(
+  rows: readonly DbNotificationRow[],
+): NotificationItem[] {
+  return rows.map((n) => {
+    if (n.sanction && (!n.sanction.type || n.sanction.type === 'warning')) {
+      const reason = n.sanction.reason.trim();
+      return {
+        id: n.id,
+        type: 'report',
+        actor: { name: 'ทีมผู้ดูแล AntiLonely' },
+        badge: { text: 'คำเตือน', variant: 'warning' },
+        actionText: 'ส่งคำเตือนถึงคุณ',
+        ...(reason ? { contentPreview: `เหตุผล: ${reason}` } : {}),
+        createdAt: n.createdAt.toISOString(),
+        isRead: n.isRead,
+        targetUrl: '/notifications',
+        isImportant: true,
+        systemIcon: 'alert',
+      };
+    }
+
+    const t = DEFAULT_NOTIFICATION_TEXT[String(n.type)] ?? {
+      actionText: 'มีการแจ้งเตือนใหม่',
+      category: 'report' as const,
+    };
+
+    return {
+      id: n.id,
+      type: t.category,
+      actor: { name: 'AntiLonely' },
+      actionText: t.actionText,
+      createdAt: n.createdAt.toISOString(),
+      isRead: n.isRead,
+      targetUrl: '/notifications',
+    };
+  });
+}

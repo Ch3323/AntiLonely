@@ -4,7 +4,7 @@ import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { DEFAULT_ROOM_EMOJI, isUuid } from "@/lib/room-board";
-import { addDuration, SUSPENSION_PRESET_DAYS } from "@/lib/sanctions";
+import { addDuration, maskEmail, SUSPENSION_PRESET_DAYS } from "@/lib/sanctions";
 
 type UserStatus = "active" | "suspended" | "banned";
 
@@ -192,13 +192,6 @@ export type AdminUserDetail = {
 export type AdminUserDetailResult =
   | { ok: true; user: AdminUserDetail }
   | { ok: false; error: string };
-
-function maskEmail(email: string) {
-  const at = email.lastIndexOf("@");
-  if (at <= 0) return "***";
-  const local = email.slice(0, at);
-  return `${local.slice(0, local.length <= 2 ? 1 : 2)}***${email.slice(at)}`;
-}
 
 export async function getAdminUserDetail(
   userId: string,

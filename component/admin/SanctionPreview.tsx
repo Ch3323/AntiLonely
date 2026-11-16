@@ -4,11 +4,13 @@ import { useState } from "react";
 import BanUserModal from "@/component/admin/BanUserModal";
 import type { SanctionTarget } from "@/component/admin/SanctionParts";
 import SuspendUserModal from "@/component/admin/SuspendUserModal";
+import WarnUserModal from "@/component/admin/WarnUserModal";
 import Icon from "@/component/Icon";
 import { formatThaiDate } from "@/lib/sanctions";
 import {
   dangerButtonClass,
   highlightClass,
+  outlineButtonClass,
   primaryButtonClass,
 } from "@/lib/styles";
 
@@ -22,7 +24,7 @@ async function fakeAction() {
 }
 
 export default function SanctionPreview() {
-  const [open, setOpen] = useState<"suspend" | "ban" | null>(null);
+  const [open, setOpen] = useState<"warn" | "suspend" | "ban" | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
   return (
@@ -34,6 +36,13 @@ export default function SanctionPreview() {
         หน้านี้มีเฉพาะตอนพัฒนา ใช้ผู้ใช้ปลอมและไม่บันทึกอะไรลงฐานข้อมูล
       </p>
       <div className="flex flex-wrap gap-3">
+        <button
+          type="button"
+          onClick={() => setOpen("warn")}
+          className={`px-4 py-2.5 ${outlineButtonClass}`}
+        >
+          ตักเตือน anon_012
+        </button>
         <button
           type="button"
           onClick={() => setOpen("suspend")}
@@ -59,6 +68,14 @@ export default function SanctionPreview() {
         </p>
       )}
 
+      {open === "warn" && (
+        <WarnUserModal
+          user={suspendTarget}
+          action={fakeAction}
+          onClose={() => setOpen(null)}
+          onDone={() => setMessage(`ตักเตือน ${suspendTarget.username} แล้ว (ตัวอย่าง)`)}
+        />
+      )}
       {open === "suspend" && (
         <SuspendUserModal
           user={suspendTarget}

@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import BanUserModal from "@/component/admin/BanUserModal";
 import { type SanctionTarget } from "@/component/admin/SanctionParts";
 import SuspendUserModal from "@/component/admin/SuspendUserModal";
+import WarnUserModal from "@/component/admin/WarnUserModal";
 import {
   dismissReports,
   deleteReportedMessages,
@@ -18,6 +19,7 @@ type ReportRow = {
   author: string;
   authorId: string | null;
   authorEmail: string | null;
+  authorRole: string | null;
   reason: string;
   count: number;
   status: string;
@@ -26,6 +28,8 @@ type ReportRow = {
 
 type AdminReportsProps = {
   reports: ReportRow[];
+  viewerId: string;
+  viewerRole: "admin" | "moderator";
 };
 
 type StatusFilter = "pending" | "resolved" | "dismissed";
@@ -65,7 +69,11 @@ function getTimeAgo(dateString: string) {
   return `${days}d`;
 }
 
-export default function AdminReports({ reports }: AdminReportsProps) {
+export default function AdminReports({
+  reports,
+  viewerId,
+  viewerRole,
+}: AdminReportsProps) {
   const router = useRouter();
   const [status, setStatus] = useState<StatusFilter>("pending");
   const [reason, setReason] = useState("all");
@@ -77,6 +85,7 @@ export default function AdminReports({ reports }: AdminReportsProps) {
   const [suspendTarget, setSuspendTarget] = useState<SanctionTarget | null>(
     null,
   );
+  const [warnTarget, setWarnTarget] = useState<SanctionTarget | null>(null);
   const [banTarget, setBanTarget] = useState<SanctionTarget | null>(null);
 
   // จำนวนรายงานแยกตามสถานะ
@@ -514,40 +523,59 @@ export default function AdminReports({ reports }: AdminReportsProps) {
               </div>
             </div>
 
-            {detail.authorId && (
-              <div className="mt-6 flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (!detail.authorId) return;
-                    setSuspendTarget({
-                      id: detail.authorId,
-                      username: detail.author,
-                      email: detail.authorEmail ?? "-",
-                    });
-                    setDetail(null);
-                  }}
-                  className="flex-1 rounded-lg border border-butter-edge bg-butter px-4 py-2.5 text-sm font-semibold text-ink hover:bg-highlight"
-                >
-                  ระงับผู้ใช้
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (!detail.authorId) return;
-                    setBanTarget({
-                      id: detail.authorId,
-                      username: detail.author,
-                      email: detail.authorEmail ?? "-",
-                    });
-                    setDetail(null);
-                  }}
-                  className="flex-1 rounded-lg border border-red-300 bg-red-50 px-4 py-2.5 text-sm font-semibold text-red-700 hover:bg-red-100"
-                >
-                  แบนผู้ใช้
-                </button>
-              </div>
-            )}
+            {detail.authorId &&
+              detail.authorId !== viewerId &&
+              detail.authorRole !== "admin" && (
+                <div className="mt-6 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!detail.authorId) return;
+                      setWarnTarget({
+                        id: detail.authorId,
+                        username: detail.author,
+                        email: detail.authorEmail ?? "-",
+                      });
+                      setDetail(null);
+                    }}
+                    className="flex-1 rounded-lg border border-edge-strong bg-cream px-4 py-2.5 text-sm font-semibold text-ink hover:bg-butter"
+                  >
+                    ตักเตือนผู้ใช้
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!detail.authorId) return;
+                      setSuspendTarget({
+                        id: detail.authorId,
+                        username: detail.author,
+                        email: detail.authorEmail ?? "-",
+                      });
+                      setDetail(null);
+                    }}
+                    className="flex-1 rounded-lg border border-butter-edge bg-butter px-4 py-2.5 text-sm font-semibold text-ink hover:bg-highlight"
+                  >
+                    ระงับผู้ใช้
+                  </button>
+                  {viewerRole === "admin" && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!detail.authorId) return;
+                        setBanTarget({
+                          id: detail.authorId,
+                          username: detail.author,
+                          email: detail.authorEmail ?? "-",
+                        });
+                        setDetail(null);
+                      }}
+                      className="flex-1 rounded-lg border border-red-300 bg-red-50 px-4 py-2.5 text-sm font-semibold text-red-700 hover:bg-red-100"
+                    >
+                      แบนผู้ใช้
+                    </button>
+                  )}
+                </div>
+              )}
 
             <button
               type="button"
@@ -558,6 +586,18 @@ export default function AdminReports({ reports }: AdminReportsProps) {
             </button>
           </div>
         </div>
+      )}
+
+      {warnTarget && (
+        <WarnUserModal
+          key={warnTarget.id}
+          user={warnTarget}
+          onClose={() => setWarnTarget(null)}
+          onDone={() => {
+            setNotice(`ตักเตือนผู้ใช้ ${warnTarget.username} เรียบร้อยแล้ว`);
+            router.refresh();
+          }}
+        />
       )}
 
       {suspendTarget && (

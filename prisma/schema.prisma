@@ -183,13 +183,15 @@ model Verification {
 
 // user 1 —receives— N notifications
 model Notification {
-  id        String           @id @default(uuid()) @db.Uuid
-  type      NotificationType
-  isRead    Boolean          @default(false) @map("is_read")
-  createdAt DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
-  userId    String           @map("user_id") @db.Uuid
+  id         String           @id @default(uuid()) @db.Uuid
+  type       NotificationType
+  isRead     Boolean          @default(false) @map("is_read")
+  createdAt  DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  userId     String           @map("user_id") @db.Uuid
+  sanctionId String?          @unique @map("sanction_id") @db.Uuid
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sanction Sanction? @relation(fields: [sanctionId], references: [id], onDelete: Cascade)
 
   @@index([userId, createdAt(sort: Desc)])
   @@map("notifications")
@@ -210,8 +212,9 @@ model Sanction {
   // Nullable so a sanction's history survives if the issuing account is deleted.
   issuedById String?      @map("issued_by_id") @db.Uuid
 
-  user     User  @relation("SanctionsReceived", fields: [userId], references: [id], onDelete: Cascade)
-  issuedBy User? @relation("SanctionsIssued", fields: [issuedById], references: [id], onDelete: SetNull)
+  user         User          @relation("SanctionsReceived", fields: [userId], references: [id], onDelete: Cascade)
+  issuedBy     User?         @relation("SanctionsIssued", fields: [issuedById], references: [id], onDelete: SetNull)
+  notification Notification?
 
   @@index([userId])
   @@index([issuedById])

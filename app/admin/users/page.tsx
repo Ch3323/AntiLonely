@@ -1,8 +1,12 @@
 import { Suspense } from "react";
 import { connection } from "next/server";
+import { headers } from "next/headers";
+import { notFound, redirect } from "next/navigation";
 import { AdminSkeleton } from "@/component/PageSkeletons";
+import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { resolveAuthorAlias } from "@/lib/room-board";
+import { maskEmail } from "@/lib/sanctions";
 import AdminUsersClient from "./AdminUsersClient";
 
 export default function AdminUsersPage() {
@@ -17,6 +21,14 @@ export default function AdminUsersPage() {
 
 async function AdminUsersData() {
   await connection();
+
+  const session = await auth.api.getSession({
+    headers: await headers(),
+  });
+  if (!session) redirect("/login");
+
+  const role = session.user.role;
+  if (role !== "admin" && role !== "moderator") notFound();
 
   const now = new Date();
 
@@ -86,7 +98,7 @@ async function AdminUsersData() {
     return {
       id: user.id,
       name: resolveAuthorAlias(user),
-      email: user.email,
+      email: maskEmail(user.email),
       role: user.role,
       joinedAt: user.createdAt.toISOString(),
       lastActiveAt: null,
@@ -95,5 +107,11 @@ async function AdminUsersData() {
     };
   });
 
-  return <AdminUsersClient initialUsers={initialUsers} />;
+  return (
+    <AdminUsersClient
+      initialUsers={initialUsers}
+      viewerId={session.user.id}
+      viewerRole={role}
+    />
+  );
 }

@@ -4,6 +4,7 @@ import BanUserModal from "@/component/admin/BanUserModal";
 import { type SanctionTarget } from "@/component/admin/SanctionParts";
 import SuspendUserModal from "@/component/admin/SuspendUserModal";
 import UserDetailModal from "@/component/admin/UserDetailModal";
+import WarnUserModal from "@/component/admin/WarnUserModal";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useNow } from "@/component/useNow";
@@ -31,6 +32,8 @@ type User = {
 
 type Props = {
   initialUsers: User[];
+  viewerId: string;
+  viewerRole: "admin" | "moderator";
 };
 
 const filters: { key: "all" | Status; label: string }[] = [
@@ -57,16 +60,6 @@ const toggleAction: Record<Status, { label: string; next: Status }> = {
   suspended: { label: "ปลดระงับ", next: "active" },
   banned: { label: "ปลดแบน", next: "active" },
 };
-
-function maskEmail(email: string) {
-  const at = email.lastIndexOf("@");
-
-  if (at <= 0) return "***";
-
-  const local = email.slice(0, at);
-
-  return `${local.slice(0, local.length <= 2 ? 1 : 2)}***${email.slice(at)}`;
-}
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString("en-US", {
@@ -106,8 +99,13 @@ function timeAgo(iso: string | null, now: number) {
   return `${Math.floor(days / 365)} ปีที่แล้ว`;
 }
 
-export default function AdminUsersClient({ initialUsers }: Props) {
+export default function AdminUsersClient({
+  initialUsers,
+  viewerId,
+  viewerRole,
+}: Props) {
   const router = useRouter();
+  const isAdmin = viewerRole === "admin";
 
   const [filter, setFilter] = useState<"all" | Status>("all");
   const [query, setQuery] = useState("");
@@ -117,6 +115,7 @@ export default function AdminUsersClient({ initialUsers }: Props) {
   const [suspendTarget, setSuspendTarget] = useState<SanctionTarget | null>(
     null,
   );
+  const [warnTarget, setWarnTarget] = useState<SanctionTarget | null>(null);
   const [banTarget, setBanTarget] = useState<SanctionTarget | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -341,15 +340,17 @@ export default function AdminUsersClient({ initialUsers }: Props) {
               ระงับ
             </button>
 
-            <button
-              disabled={isPending}
-              onClick={() =>
-                handleSanctionTrigger(Array.from(selected), "banned")
-              }
-              className="rounded-md bg-red-950 px-3.5 py-1.5 text-xs font-semibold text-red-300 hover:bg-red-900 disabled:opacity-50"
-            >
-              แบน
-            </button>
+            {isAdmin && (
+              <button
+                disabled={isPending}
+                onClick={() =>
+                  handleSanctionTrigger(Array.from(selected), "banned")
+                }
+                className="rounded-md bg-red-950 px-3.5 py-1.5 text-xs font-semibold text-red-300 hover:bg-red-900 disabled:opacity-50"
+              >
+                แบน
+              </button>
+            )}
           </div>
         </div>
       )}
@@ -406,7 +407,7 @@ export default function AdminUsersClient({ initialUsers }: Props) {
                 </td>
 
                 <td className="px-4 py-4">
-                  {maskEmail(u.email)}
+                  {u.email}
                 </td>
 
                 <td className="whitespace-nowrap px-4 py-4 text-ink-soft">
@@ -424,7 +425,7 @@ export default function AdminUsersClient({ initialUsers }: Props) {
                 <td className="px-4 py-4">
                   <select
                     value={u.role}
-                    disabled={isPending}
+                    disabled={isPending || !isAdmin || u.id === viewerId}
                     onChange={(e) =>
                       changeRole(u, e.target.value as Role)
                     }
@@ -457,30 +458,49 @@ export default function AdminUsersClient({ initialUsers }: Props) {
                       ดู
                     </button>
 
-                    <button
-                      type="button"
-                      disabled={isPending}
-                      onClick={() => {
-                        if (u.status === "active") {
-                          setSuspendTarget(toSanctionTarget(u));
-                        } else {
-                          changeStatus([u.id], toggleAction[u.status].next);
-                        }
-                      }}
-                      className="rounded border border-edge-strong bg-white px-2 py-0.5 text-[11px] font-medium hover:bg-butter disabled:opacity-50"
-                    >
-                      {toggleAction[u.status].label}
-                    </button>
+                    {u.id !== viewerId && u.role !== "admin" && (
+                      <>
+                        {(u.status !== "banned" || isAdmin) && (
+                          <button
+                            type="button"
+                            disabled={isPending}
+                            onClick={() => {
+                              if (u.status === "active") {
+                                setSuspendTarget(toSanctionTarget(u));
+                              } else {
+                                changeStatus([u.id], toggleAction[u.status].next);
+                              }
+                            }}
+                            className="rounded border border-edge-strong bg-white px-2 py-0.5 text-[11px] font-medium hover:bg-butter disabled:opacity-50"
+                          >
+                            {toggleAction[u.status].label}
+                          </button>
+                        )}
 
-                    {u.status !== "banned" && (
-                      <button
-                        type="button"
-                        disabled={isPending}
-                        onClick={() => setBanTarget(toSanctionTarget(u))}
-                        className="rounded border border-red-300 bg-white px-2 py-0.5 text-[11px] font-medium text-red-600 hover:bg-red-50 disabled:opacity-50"
-                      >
-                        แบน
-                      </button>
+                        {u.status !== "banned" && (
+                          <>
+                            <button
+                              type="button"
+                              disabled={isPending}
+                              onClick={() => setWarnTarget(toSanctionTarget(u))}
+                              className="rounded border border-butter-edge bg-butter/70 px-2 py-0.5 text-[11px] font-medium text-ink hover:bg-butter disabled:opacity-50"
+                            >
+                              ตักเตือน
+                            </button>
+
+                            {isAdmin && (
+                              <button
+                                type="button"
+                                disabled={isPending}
+                                onClick={() => setBanTarget(toSanctionTarget(u))}
+                                className="rounded border border-red-300 bg-white px-2 py-0.5 text-[11px] font-medium text-red-600 hover:bg-red-50 disabled:opacity-50"
+                              >
+                                แบน
+                              </button>
+                            )}
+                          </>
+                        )}
+                      </>
                     )}
                   </div>
                 </td>
@@ -513,6 +533,17 @@ export default function AdminUsersClient({ initialUsers }: Props) {
           key={viewUserId}
           userId={viewUserId}
           onClose={() => setViewUserId(null)}
+        />
+      )}
+      {warnTarget && (
+        <WarnUserModal
+          key={warnTarget.id}
+          user={warnTarget}
+          onClose={() => setWarnTarget(null)}
+          onDone={() => {
+            setSelected(new Set());
+            router.refresh();
+          }}
         />
       )}
       {suspendTarget && (

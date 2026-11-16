@@ -11,23 +11,62 @@ export type SanctionResult = { ok: true } | { ok: false; error: string };
 
 const MAX_REASON_LENGTH = 1000;
 
-// Who may do what: moderators and admins can suspend; only admins can ban.
+// Who may do what: moderators and admins can warn/suspend; only admins can ban.
 // Nobody can sanction themselves or an admin.
 async function checkPermission(
   targetUserId: string,
-  action: "suspend" | "ban",
+  action: "warn" | "suspend" | "ban",
 ): Promise<{ ok: true; issuedById: string } | { ok: false; error: string }> {
   const session = await auth.api.getSession({ headers: await headers() });
   const role = session?.user.role;
   if (!session || (role !== "admin" && (action === "ban" || role !== "moderator"))) {
     return { ok: false, error: "คุณไม่มีสิทธิ์ทำรายการนี้" };
   }
-  if (session.user.id === targetUserId) return { ok: false, error: "ระงับหรือแบนบัญชีตัวเองไม่ได้" };
+  if (session.user.id === targetUserId) return { ok: false, error: "ตักเตือน ระงับ หรือแบนบัญชีตัวเองไม่ได้" };
 
   const target = await prisma.user.findUnique({ where: { id: targetUserId }, select: { role: true } });
   if (!target) return { ok: false, error: "ไม่พบผู้ใช้นี้" };
-  if (target.role === "admin") return { ok: false, error: "ระงับหรือแบนผู้ดูแลระบบไม่ได้" };
+  if (target.role === "admin") return { ok: false, error: "ตักเตือน ระงับ หรือแบนผู้ดูแลระบบไม่ได้" };
   return { ok: true, issuedById: session.user.id };
+}
+
+export async function warnUser(input: {
+  userId: string;
+  reason: string;
+  notifyByEmail: boolean;
+}): Promise<SanctionResult> {
+  const reason = input.reason.trim().slice(0, MAX_REASON_LENGTH);
+  if (!reason) return { ok: false, error: "ต้องระบุเหตุผลในการตักเตือน" };
+
+  const permission = await checkPermission(input.userId, "warn");
+  if (!permission.ok) return permission;
+
+  await prisma.$transaction(async (tx) => {
+    const sanction = await tx.sanction.create({
+      data: {
+        type: "warning",
+        reason,
+        endAt: null,
+        userId: input.userId,
+        issuedById: permission.issuedById,
+      },
+      select: { id: true },
+    });
+    await tx.notification.create({
+      data: {
+        userId: input.userId,
+        type: "report",
+        sanctionId: sanction.id,
+      },
+    });
+  });
+  // TODO: send the email when an email service is set up (input.notifyByEmail).
+  revalidatePath("/admin");
+  revalidatePath("/admin/users");
+  revalidatePath("/admin/reports");
+  revalidatePath("/admin/logs");
+  revalidatePath("/notifications");
+  return { ok: true };
 }
 
 export async function suspendUser(input: {

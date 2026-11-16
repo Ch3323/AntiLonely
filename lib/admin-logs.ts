@@ -176,7 +176,7 @@ function formatSanctionSubtitle(
     const remainingMs = sanction.endAt.getTime() - nowMs;
     if (remainingMs <= 0) {
       parts.push('หมดอายุแล้ว');
-    } else if (sanction.type === 'suspension') {
+    } else {
       parts.push(`เหลือ ${Math.ceil(remainingMs / DAY_MS)} วัน`);
     }
   }

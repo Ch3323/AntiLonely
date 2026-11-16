@@ -75,6 +75,7 @@ if (role !== "admin" && role !== "moderator") {
               displayUsername: true,
               name: true,
               email: true,
+              role: true,
             },
           },
         },
@@ -96,6 +97,7 @@ if (role !== "admin" && role !== "moderator") {
       author: string;
       authorId: string | null;
       authorEmail: string | null;
+      authorRole: string | null;
       reason: string;
       count: number;
       status: string;
@@ -135,6 +137,7 @@ if (role !== "admin" && role !== "moderator") {
           : "ไม่ทราบผู้เขียน",
         authorId: message.author?.id ?? null,
         authorEmail: message.author?.email ? maskEmail(message.author.email) : null,
+        authorRole: message.author?.role ?? null,
         reason: report.reason,
         count: 1,
         status: report.status,
@@ -158,6 +161,7 @@ if (role !== "admin" && role !== "moderator") {
         author: item.author,
         authorId: item.authorId,
         authorEmail: item.authorEmail,
+        authorRole: item.authorRole,
         reason: mainReason,
         count: item.count,
         status: item.status,
@@ -167,5 +171,11 @@ if (role !== "admin" && role !== "moderator") {
   );
 
   // 5. ส่งข้อมูลไปแสดงผล
-  return <AdminReports reports={reportRows} />;
+  return (
+    <AdminReports
+      reports={reportRows}
+      viewerId={session.user.id}
+      viewerRole={role}
+    />
+  );
 }
