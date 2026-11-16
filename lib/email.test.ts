@@ -103,3 +103,28 @@ test('sendEmail with EMAIL_LOG_ONLY prints instead of calling the provider', asy
   assert.equal(called, false);
   assert.ok(printed.includes('the-link'));
 });
+
+test('suspensionEmail says until when, carries the reason and the rules link', async () => {
+  const { suspensionEmail } = await import('./email.ts');
+  const message = suspensionEmail({
+    to: 's@example.com',
+    until: '22 ธ.ค. 2569',
+    reason: '  สแปมซ้ำหลายครั้ง  ',
+    rulesUrl: 'http://localhost:3000/rules',
+  });
+  assert.equal(message.to, 's@example.com');
+  assert.ok(message.text.includes('22 ธ.ค. 2569'));
+  assert.ok(message.text.includes('สแปมซ้ำหลายครั้ง'));
+  assert.ok(!message.text.includes('  สแปม'));
+  assert.ok(message.text.includes('http://localhost:3000/rules'));
+});
+
+test('banEmail leaves the reason block out when no reason was given', async () => {
+  const { banEmail } = await import('./email.ts');
+  const withReason = banEmail({ to: 'b@example.com', reason: 'คุกคามผู้อื่น', rulesUrl: 'http://localhost:3000/rules' });
+  const without = banEmail({ to: 'b@example.com', reason: '   ', rulesUrl: 'http://localhost:3000/rules' });
+  assert.ok(withReason.text.includes('คุกคามผู้อื่น'));
+  assert.ok(withReason.text.includes('เหตุผลจากทีมงาน'));
+  assert.ok(!without.text.includes('เหตุผลจากทีมงาน'));
+  assert.ok(without.text.includes('แบนถาวร'));
+});

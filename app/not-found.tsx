@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import Header from "@/component/Header";
 import Paper from "@/component/Paper";
-import { currentUser, myRooms } from "@/lib/mock";
 import { highlightClass, primaryButtonClass } from "@/lib/styles";
 
 export const metadata: Metadata = {
@@ -14,11 +13,9 @@ export const metadata: Metadata = {
 export default function NotFound() {
   return (
     <div className="flex flex-1 flex-col">
-      <Header
-        notifications={currentUser.notifications}
-        rooms={myRooms}
-        alias={currentUser.alias}
-      />
+      {/* The header finds out who is signed in by itself: the bell reads the
+          unread count and the create button asks for your rooms. */}
+      <Header notifications={0} />
       <main className="flex flex-1 items-center justify-center px-4 py-10">
         <Paper className="w-full max-w-sm text-center">
           <p

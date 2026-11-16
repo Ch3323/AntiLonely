@@ -1,21 +1,13 @@
-export interface GoogleProfileNameFields {
-  name?: string | null;
-  given_name?: string | null;
-}
-
 /**
- * Maps a first-time Google OAuth profile to Better Auth's user record, keeping
- * the Google account's name as the visible nickname while keeping the generated
- * username handle anonymous and stripping the external avatar.
+ * The user record for someone signing up with Google for the first time.
+ * This is an anonymous app, so nothing from the Google profile is kept: not
+ * the account's name (usually a real name) and not its photo. The visible
+ * nickname starts as the generated handle, and the person can change it on
+ * their profile.
  */
-export function mapGoogleProfileToUser(
-  profile: GoogleProfileNameFields,
-  generatedUsername: string
-) {
-  const name =
-    profile.name?.trim() || profile.given_name?.trim() || generatedUsername;
+export function mapGoogleProfileToUser(generatedUsername: string) {
   return {
-    name,
+    name: generatedUsername,
     username: generatedUsername,
     displayUsername: generatedUsername,
     image: undefined,

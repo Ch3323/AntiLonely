@@ -4,7 +4,6 @@ import { AuthLink } from "@/component/AuthCard";
 import CommunityRules from "@/component/CommunityRules";
 import Header from "@/component/Header";
 import Paper from "@/component/Paper";
-import { currentUser, myRooms } from "@/lib/mock";
 import { highlightClass, outlineButtonClass, primaryButtonClass } from "@/lib/styles";
 
 export const metadata: Metadata = {
@@ -17,11 +16,9 @@ export const metadata: Metadata = {
 export default function RulesPage() {
   return (
     <div className="flex flex-1 flex-col">
-      <Header
-        notifications={currentUser.notifications}
-        rooms={myRooms}
-        alias={currentUser.alias}
-      />
+      {/* The header finds out who is signed in by itself: the bell reads the
+          unread count and the create button asks for your rooms. */}
+      <Header notifications={0} />
       <main className="flex flex-1 justify-center px-4 py-10">
         <Paper className="w-full max-w-2xl">
           <h1 className="font-display text-[1.75rem] leading-tight font-semibold">
