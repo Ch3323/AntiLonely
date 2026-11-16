@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import { connection } from "next/server";
 import { AdminSkeleton } from "@/component/PageSkeletons";
 import { prisma } from "@/lib/prisma";
+import { resolveAuthorAlias } from "@/lib/room-board";
 import AdminUsersClient from "./AdminUsersClient";
 
 export default function AdminUsersPage() {
@@ -84,7 +85,7 @@ async function AdminUsersData() {
 
     return {
       id: user.id,
-      name: user.displayUsername || user.username,
+      name: resolveAuthorAlias(user),
       email: user.email,
       role: user.role,
       joinedAt: user.createdAt.toISOString(),

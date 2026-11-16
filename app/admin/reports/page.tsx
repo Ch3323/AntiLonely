@@ -5,6 +5,7 @@ import { headers } from "next/headers";
 
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { resolveAuthorAlias } from "@/lib/room-board";
 import AdminReports from "@/component/admin/AdminReports";
 
 export default function AdminReportsPage() {
@@ -68,7 +69,10 @@ if (role !== "admin" && role !== "moderator") {
           },
           author: {
             select: {
+              id: true,
               username: true,
+              displayUsername: true,
+              name: true,
             },
           },
         },
@@ -122,7 +126,9 @@ if (role !== "admin" && role !== "moderator") {
         messageId,
         content: message.content,
         room: message.room.name,
-        author: message.author?.username ?? "ไม่ทราบผู้เขียน",
+        author: message.author
+          ? resolveAuthorAlias(message.author)
+          : "ไม่ทราบผู้เขียน",
         reason: report.reason,
         count: 1,
         status: report.status,

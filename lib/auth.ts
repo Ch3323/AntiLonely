@@ -5,6 +5,10 @@ import { nextCookies } from "better-auth/next-js";
 import { username } from "better-auth/plugins";
 import { randomBytes } from "node:crypto";
 import {
+  mapGoogleProfileToUser,
+  prepareUserUpdatePayload,
+} from "./auth-profile";
+import {
   googleOnlyAccountEmail,
   RESET_LINK_LIFETIME_SECONDS,
   resetPasswordEmail,
@@ -100,9 +104,7 @@ export const auth = betterAuth({
             // (Only applied when the account is first created.)
             mapProfileToUser: async (profile) => {
               const username = await generateUsername();
-              const name =
-                profile.name?.trim() || profile.given_name?.trim() || username;
-              return { name, username, displayUsername: username, image: undefined };
+              return mapGoogleProfileToUser(profile, username);
             },
           },
         }
@@ -118,6 +120,9 @@ export const auth = betterAuth({
           const username = await generateUsername();
           return { data: { ...user, username, displayUsername: username } };
         },
+      },
+      update: {
+        before: async (user) => prepareUserUpdatePayload(user),
       },
     },
     session: {
