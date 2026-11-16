@@ -230,7 +230,7 @@ export async function getRoomBoardData(
   const currentUser: RoomBoardViewer | null = viewer
     ? {
         id: viewer.id,
-        name: viewer.username,
+        name: viewer.name,
         alias: resolveAuthorAlias(viewer),
         notifications: unreadNotifications,
       }

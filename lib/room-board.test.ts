@@ -137,6 +137,33 @@ describe('room-board domain & DB mapping', () => {
       }),
       'ต้นหอม'
     );
+    assert.equal(
+      resolveAuthorAlias({
+        id: 'u3',
+        username: 'user_k3j9x2ab',
+        displayUsername: 'user_k3j9x2ab',
+        name: 'ม่อน',
+      }),
+      'ม่อน'
+    );
+    assert.equal(
+      resolveAuthorAlias({
+        id: 'u4',
+        username: 'alice',
+        displayUsername: 'Alice',
+        name: 'น้องเอ',
+      }),
+      'น้องเอ'
+    );
+    assert.equal(
+      resolveAuthorAlias({
+        id: 'u5',
+        username: 'user_x9y8z7',
+        displayUsername: 'USER_X9Y8Z7',
+        name: '   ',
+      }),
+      'USER_X9Y8Z7'
+    );
     assert.equal(resolveAuthorAlias(null), 'นิรนาม');
   });
 

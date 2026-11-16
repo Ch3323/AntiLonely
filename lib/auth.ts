@@ -5,6 +5,10 @@ import { nextCookies } from "better-auth/next-js";
 import { username } from "better-auth/plugins";
 import { randomBytes } from "node:crypto";
 import {
+  mapGoogleProfileToUser,
+  prepareUserUpdatePayload,
+} from "./auth-profile";
+import {
   googleOnlyAccountEmail,
   RESET_LINK_LIFETIME_SECONDS,
   resetPasswordEmail,
@@ -95,12 +99,12 @@ export const auth = betterAuth({
             clientSecret: googleClientSecret,
             // Let people choose which Google account to use every time.
             prompt: "select_account",
-            // This is an anonymous app: don't keep the person's real name or
-            // Google photo. Their name becomes a random username instead.
+            // Keep the Google account name as the user's display name while
+            // assigning a random unique username and omitting the Google photo.
             // (Only applied when the account is first created.)
-            mapProfileToUser: async () => {
+            mapProfileToUser: async (profile) => {
               const username = await generateUsername();
-              return { name: username, username, displayUsername: username, image: undefined };
+              return mapGoogleProfileToUser(profile, username);
             },
           },
         }
@@ -116,6 +120,9 @@ export const auth = betterAuth({
           const username = await generateUsername();
           return { data: { ...user, username, displayUsername: username } };
         },
+      },
+      update: {
+        before: async (user) => prepareUserUpdatePayload(user),
       },
     },
     session: {
