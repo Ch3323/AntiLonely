@@ -1,5 +1,6 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { auth } from "./auth";
 import { prisma } from "./prisma";
@@ -53,6 +54,10 @@ export async function suspendUser(input: {
     prisma.session.deleteMany({ where: { userId: input.userId } }),
   ]);
   // TODO: send the email when an email service is set up (input.notifyByEmail).
+  revalidatePath("/admin");
+  revalidatePath("/admin/users");
+  revalidatePath("/admin/reports");
+  revalidatePath("/admin/logs");
   return { ok: true };
 }
 
@@ -91,5 +96,9 @@ export async function banUser(input: {
   ]);
   signalMessagesChanged(hiddenIds);
   // TODO: send the email when an email service is set up (input.notifyByEmail).
+  revalidatePath("/admin");
+  revalidatePath("/admin/users");
+  revalidatePath("/admin/reports");
+  revalidatePath("/admin/logs");
   return { ok: true };
 }

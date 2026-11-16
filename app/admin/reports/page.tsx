@@ -6,6 +6,7 @@ import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { resolveAuthorAlias } from "@/lib/room-board";
+import { maskEmail } from "@/lib/sanctions";
 import AdminReports from "@/component/admin/AdminReports";
 
 export default function AdminReportsPage() {
@@ -73,6 +74,7 @@ if (role !== "admin" && role !== "moderator") {
               username: true,
               displayUsername: true,
               name: true,
+              email: true,
             },
           },
         },
@@ -92,6 +94,8 @@ if (role !== "admin" && role !== "moderator") {
       content: string;
       room: string;
       author: string;
+      authorId: string | null;
+      authorEmail: string | null;
       reason: string;
       count: number;
       status: string;
@@ -129,6 +133,8 @@ if (role !== "admin" && role !== "moderator") {
         author: message.author
           ? resolveAuthorAlias(message.author)
           : "ไม่ทราบผู้เขียน",
+        authorId: message.author?.id ?? null,
+        authorEmail: message.author?.email ? maskEmail(message.author.email) : null,
         reason: report.reason,
         count: 1,
         status: report.status,
@@ -150,6 +156,8 @@ if (role !== "admin" && role !== "moderator") {
         content: item.content,
         room: item.room,
         author: item.author,
+        authorId: item.authorId,
+        authorEmail: item.authorEmail,
         reason: mainReason,
         count: item.count,
         status: item.status,

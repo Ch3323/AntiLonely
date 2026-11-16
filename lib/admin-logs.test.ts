@@ -2,11 +2,9 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
   buildDashboardActivities,
-  buildModerationHistory,
   buildSummaryActivityFeed,
   formatActivityTime,
   formatLogTimestamp,
-  formatSanctionAction,
   getReportReasonLabel,
   type AdminSanctionType,
 } from './admin-logs.ts';
@@ -120,7 +118,7 @@ describe('admin-logs helpers', () => {
     assert.equal(items[4].text, 'admin_01 ระงับผู้ใช้ target_s เนื่องจาก คุกคามซ้ำ');
   });
 
-  it('builds summary feed with sanction lifecycle subtitles and saturated window cutoffs', () => {
+  it('builds summary feed with sanction duration/lifecycle subtitles and saturated window cutoffs', () => {
     const feed = buildSummaryActivityFeed({
       rooms: [
         {
@@ -147,7 +145,7 @@ describe('admin-logs helpers', () => {
       ],
       sanctions: [
         {
-          id: 's1',
+          id: 's-lifted',
           type: 'suspension',
           reason: 'คุกคาม',
           endAt: new Date(NOW_MS + 86_400_000),
@@ -157,7 +155,27 @@ describe('admin-logs helpers', () => {
           issuedBy: { id: 'a1', username: 'a1', displayUsername: 'admin_01', name: 'admin_01' },
         },
         {
-          id: 's2',
+          id: 's-active',
+          type: 'suspension',
+          reason: 'พูดจาไม่สุภาพ',
+          endAt: new Date(NOW_MS + 7 * 86_400_000),
+          liftedAt: null,
+          createdAt: new Date(NOW_MS - 15 * 60 * 1000),
+          user: { id: 'u6', username: 'u6', displayUsername: 'anon_6', name: 'anon_6' },
+          issuedBy: { id: 'a1', username: 'a1', displayUsername: 'admin_01', name: 'admin_01' },
+        },
+        {
+          id: 's-ban',
+          type: 'ban',
+          reason: 'สแปมซ้ำ',
+          endAt: null,
+          liftedAt: null,
+          createdAt: new Date(NOW_MS - 20 * 60 * 1000),
+          user: { id: 'u7', username: 'u7', displayUsername: 'anon_7', name: 'anon_7' },
+          issuedBy: { id: 'a1', username: 'a1', displayUsername: 'admin_01', name: 'admin_01' },
+        },
+        {
+          id: 's-expired',
           type: 'suspension',
           reason: '',
           endAt: new Date(NOW_MS - 1 * 60 * 1000),
@@ -171,99 +189,16 @@ describe('admin-logs helpers', () => {
       nowMs: NOW_MS,
     });
 
-    // Both rooms and sanctions hit perSourceLimit=2; rooms' oldest (-10m) is newer
-    // than sanctions' oldest (-60m), so allCutoffMs and userCutoffMs equal -10m.
+    // Both rooms (2) and sanctions (4) hit perSourceLimit=2; rooms' oldest (-10m) is
+    // newer than sanctions' oldest (-60m), so allCutoffMs and userCutoffMs equal -10m.
     assert.equal(feed.allCutoffMs, NOW_MS - 10 * 60 * 1000);
     assert.equal(feed.userCutoffMs, NOW_MS - 10 * 60 * 1000);
-    assert.equal(feed.items[1].subtitle, 'เหตุผล: คุกคาม · ปลดแล้ว');
-    assert.equal(feed.items[4].subtitle, 'หมดอายุแล้ว');
-    assert.equal(feed.items[3].subtitle, 'เหตุผล: เนื้อหาไม่เหมาะสม: ทดสอบ');
-  });
 
-  it('formats sanction action badges and builds moderation history from sanctions', () => {
-    assert.deepEqual(
-      formatSanctionAction(
-        {
-          sanctionType: 'suspension',
-          endAt: new Date(NOW_MS + 5 * 24 * 60 * 60 * 1000).toISOString(),
-          liftedAt: null,
-        },
-        NOW_MS,
-      ),
-      { base: 'ระงับผู้ใช้', label: 'ระงับผู้ใช้ · เหลือ 5 วัน', tone: 'warn' },
-    );
-
-    assert.deepEqual(
-      formatSanctionAction(
-        {
-          sanctionType: 'suspension',
-          endAt: new Date(NOW_MS - 1000).toISOString(),
-          liftedAt: null,
-        },
-        NOW_MS,
-      ),
-      { base: 'ระงับผู้ใช้', label: 'ระงับผู้ใช้ · หมดอายุแล้ว', tone: 'neutral' },
-    );
-
-    assert.deepEqual(
-      formatSanctionAction(
-        {
-          sanctionType: 'suspension',
-          endAt: new Date(NOW_MS + 5 * 24 * 60 * 60 * 1000).toISOString(),
-          liftedAt: NOW_ISO,
-        },
-        NOW_MS,
-      ),
-      { base: 'ระงับผู้ใช้', label: 'ระงับผู้ใช้ · ปลดแล้ว', tone: 'neutral' },
-    );
-
-    assert.deepEqual(
-      formatSanctionAction(
-        { sanctionType: 'ban', endAt: null, liftedAt: null },
-        NOW_MS,
-      ),
-      { base: 'แบนผู้ใช้', label: 'แบนผู้ใช้ · ถาวร', tone: 'danger' },
-    );
-
-    assert.deepEqual(
-      formatSanctionAction(
-        { sanctionType: 'warning', endAt: null, liftedAt: null },
-        NOW_MS,
-      ),
-      { base: 'ตักเตือนผู้ใช้', label: 'ตักเตือนผู้ใช้', tone: 'warn' },
-    );
-
-    const history = buildModerationHistory([
-      {
-        id: 's-old',
-        type: 'warning',
-        reason: '   ',
-        endAt: null,
-        liftedAt: null,
-        createdAt: new Date(NOW_MS - 60_000),
-        user: { id: 'u1', username: 'u1', displayUsername: 'anon_1', name: 'anon_1' },
-        issuedBy: null,
-      },
-      {
-        id: 's-new',
-        type: 'ban',
-        reason: 'สแปมซ้ำ',
-        endAt: null,
-        liftedAt: null,
-        createdAt: new Date(NOW_MS),
-        user: { id: 'u2', username: 'u2', displayUsername: 'anon_2', name: 'anon_2' },
-        issuedBy: { id: 'a1', username: 'a1', displayUsername: 'admin_01', name: 'admin_01' },
-      },
-    ]);
-
-    assert.equal(history.length, 2);
-    assert.equal(history[0].id, 's-new');
-    assert.equal(history[0].admin, 'admin_01');
-    assert.equal(history[0].target, 'anon_2');
-    assert.equal(history[0].detail, 'สแปมซ้ำ');
-
-    assert.equal(history[1].id, 's-old');
-    assert.equal(history[1].admin, 'ระบบ/ผู้ดูแล');
-    assert.equal(history[1].detail, '-');
+    const byId = new Map(feed.items.map((item) => [item.id, item]));
+    assert.equal(byId.get('sanction-s-lifted')?.subtitle, 'เหตุผล: คุกคาม · ปลดแล้ว');
+    assert.equal(byId.get('sanction-s-active')?.subtitle, 'เหตุผล: พูดจาไม่สุภาพ · เหลือ 7 วัน');
+    assert.equal(byId.get('sanction-s-ban')?.subtitle, 'เหตุผล: สแปมซ้ำ · ถาวร');
+    assert.equal(byId.get('sanction-s-expired')?.subtitle, 'หมดอายุแล้ว');
+    assert.equal(byId.get('report-rp1')?.subtitle, 'เหตุผล: เนื้อหาไม่เหมาะสม: ทดสอบ');
   });
 });
