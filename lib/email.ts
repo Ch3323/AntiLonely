@@ -12,7 +12,6 @@
 // production.
 
 import nodemailer from "nodemailer";
-import { formatThaiDate } from "./sanctions.ts";
 
 export type EmailMessage = {
   to: string;
@@ -160,6 +159,20 @@ export function verifyEmailMessage(to: string, url: string): EmailMessage {
   };
 }
 
+// What a suspension or ban email needs. `until` is already formatted for
+// reading (this file has no imports), `reason` may be empty, and `rulesUrl`
+// points at the community rules.
+type SanctionEmailInput = {
+  to: string;
+  reason: string;
+  rulesUrl: string;
+};
+
+function sanctionReasonLines(reason: string): string[] {
+  const trimmed = reason.trim();
+  return trimmed ? ["เหตุผลจากทีมงาน:", trimmed, ""] : [];
+}
+
 // Sent when a moderator or admin issues a warning sanction with email notification enabled.
 export function warningSanctionEmail(to: string, reason: string): EmailMessage {
   const cleanReason = reason.trim();
@@ -179,42 +192,43 @@ export function warningSanctionEmail(to: string, reason: string): EmailMessage {
   };
 }
 
-// Sent when a moderator or admin temporarily suspends an account with email notification enabled.
-export function suspensionSanctionEmail(
-  to: string,
-  endAt: Date,
-  reason: string,
+// Sent when a moderator or admin suspends an account and leaves "แจ้งเตือน
+// ผู้ใช้ทางอีเมล" ticked.
+export function suspensionEmail(
+  input: SanctionEmailInput & { until: string },
 ): EmailMessage {
-  const cleanReason = reason.trim();
   return {
-    to,
+    to: input.to,
     subject: "บัญชี AntiLonely ของคุณถูกระงับชั่วคราว",
     text: [
       "สวัสดี",
       "",
-      `บัญชี AntiLonely ของคุณถูกระงับการใช้งานชั่วคราวจนถึง\nวันที่ ${formatThaiDate(endAt)}`,
-      ...(cleanReason ? [`เหตุผล: ${cleanReason}`] : []),
+      `บัญชี AntiLonely ที่ใช้อีเมลนี้ถูกระงับชั่วคราว ถึงวันที่ ${input.until}`,
+      "ระหว่างนี้จะเข้าสู่ระบบไม่ได้ และจะกลับมาใช้งานได้ตามปกติเมื่อครบกำหนด",
       "",
-      "คุณจะสามารถกลับมาเข้าสู่ระบบและใช้งานได้อีกครั้ง\nเมื่อครบกำหนด",
+      ...sanctionReasonLines(input.reason),
+      `อ่านกติกาของชุมชนได้ที่ ${input.rulesUrl}`,
       "",
-      "ทีมผู้ดูแล AntiLonely",
+      "AntiLonely",
     ].join("\n"),
   };
 }
 
-// Sent when an admin permanently bans an account with email notification enabled.
-export function banSanctionEmail(to: string, reason: string): EmailMessage {
-  const cleanReason = reason.trim();
+// Sent when an admin bans an account and leaves "แจ้งเตือนผู้ใช้ทางอีเมล"
+// ticked.
+export function banEmail(input: SanctionEmailInput): EmailMessage {
   return {
-    to,
-    subject: "บัญชี AntiLonely ของคุณถูกแบนถาวร",
+    to: input.to,
+    subject: "บัญชี AntiLonely ของคุณถูกแบน",
     text: [
       "สวัสดี",
       "",
-      "บัญชี AntiLonely ของคุณถูกระงับการใช้งานถาวรเนื่องจากละเมิดกติกาของชุมชน",
-      `เหตุผล: ${cleanReason}`,
+      "บัญชี AntiLonely ที่ใช้อีเมลนี้ถูกแบนถาวร และจะเข้าสู่ระบบไม่ได้อีก",
       "",
-      "ทีมผู้ดูแล AntiLonely",
+      ...sanctionReasonLines(input.reason),
+      `อ่านกติกาของชุมชนได้ที่ ${input.rulesUrl}`,
+      "",
+      "AntiLonely",
     ].join("\n"),
   };
 }

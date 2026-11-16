@@ -1,13 +1,11 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
-  banSanctionEmail,
   googleOnlyAccountEmail,
   liftSanctionEmail,
   RESET_LINK_LIFETIME_SECONDS,
   resetPasswordEmail,
   sendEmail,
-  suspensionSanctionEmail,
   warningSanctionEmail,
 } from './email.ts';
 
@@ -121,26 +119,6 @@ test('warningSanctionEmail includes recipient, warning subject, and reason', () 
   assert.ok(message.text.includes('เหตุผล: ใช้คำไม่สุภาพ'));
 });
 
-test('suspensionSanctionEmail includes formatted Thai end date and optional reason', () => {
-  const endAt = new Date('2026-12-22T00:00:00+07:00');
-  const withReason = suspensionSanctionEmail('user@example.com', endAt, 'สแปมซ้ำหลายครั้ง');
-  assert.equal(withReason.to, 'user@example.com');
-  assert.equal(withReason.subject, 'บัญชี AntiLonely ของคุณถูกระงับชั่วคราว');
-  assert.ok(withReason.text.includes('22 ธ.ค. 2569'));
-  assert.ok(withReason.text.includes('เหตุผล: สแปมซ้ำหลายครั้ง'));
-
-  const withoutReason = suspensionSanctionEmail('user@example.com', endAt, '   ');
-  assert.ok(withoutReason.text.includes('22 ธ.ค. 2569'));
-  assert.ok(!withoutReason.text.includes('เหตุผล:'));
-});
-
-test('banSanctionEmail includes recipient, ban subject, and reason', () => {
-  const message = banSanctionEmail('user@example.com', 'คุกคามผู้อื่นซ้ำ');
-  assert.equal(message.to, 'user@example.com');
-  assert.equal(message.subject, 'บัญชี AntiLonely ของคุณถูกแบนถาวร');
-  assert.ok(message.text.includes('เหตุผล: คุกคามผู้อื่นซ้ำ'));
-});
-
 test('liftSanctionEmail informs user their account is restored', () => {
   const message = liftSanctionEmail('user@example.com');
   assert.equal(message.to, 'user@example.com');
@@ -181,4 +159,29 @@ test('sendEmail sends via Gmail SMTP when SMTP_USER and SMTP_PASS are configured
   assert.equal(capturedMails[0].from, 'AntiLonely <sender@gmail.com>');
   assert.equal(capturedMails[0].to, 'target@example.com');
   assert.equal(capturedMails[0].subject, 'คำเตือนจากทีมผู้ดูแล AntiLonely');
+});
+
+test('suspensionEmail says until when, carries the reason and the rules link', async () => {
+  const { suspensionEmail } = await import('./email.ts');
+  const message = suspensionEmail({
+    to: 's@example.com',
+    until: '22 ธ.ค. 2569',
+    reason: '  สแปมซ้ำหลายครั้ง  ',
+    rulesUrl: 'http://localhost:3000/rules',
+  });
+  assert.equal(message.to, 's@example.com');
+  assert.ok(message.text.includes('22 ธ.ค. 2569'));
+  assert.ok(message.text.includes('สแปมซ้ำหลายครั้ง'));
+  assert.ok(!message.text.includes('  สแปม'));
+  assert.ok(message.text.includes('http://localhost:3000/rules'));
+});
+
+test('banEmail leaves the reason block out when no reason was given', async () => {
+  const { banEmail } = await import('./email.ts');
+  const withReason = banEmail({ to: 'b@example.com', reason: 'คุกคามผู้อื่น', rulesUrl: 'http://localhost:3000/rules' });
+  const without = banEmail({ to: 'b@example.com', reason: '   ', rulesUrl: 'http://localhost:3000/rules' });
+  assert.ok(withReason.text.includes('คุกคามผู้อื่น'));
+  assert.ok(withReason.text.includes('เหตุผลจากทีมงาน'));
+  assert.ok(!without.text.includes('เหตุผลจากทีมงาน'));
+  assert.ok(without.text.includes('แบนถาวร'));
 });

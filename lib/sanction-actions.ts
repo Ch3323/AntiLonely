@@ -4,14 +4,15 @@ import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { auth } from "./auth";
 import {
-  banSanctionEmail,
+  banEmail,
+  type EmailMessage,
   sendEmail,
-  suspensionSanctionEmail,
+  suspensionEmail,
   warningSanctionEmail,
 } from "./email";
 import { prisma } from "./prisma";
 import { signalMessagesChanged } from "./room-live-notify";
-import { suspensionEndsWithinLimit } from "./sanctions";
+import { formatThaiDate, suspensionEndsWithinLimit } from "./sanctions";
 
 export type SanctionResult = { ok: true } | { ok: false; error: string };
 
@@ -89,6 +90,22 @@ export async function warnUser(input: {
   return { ok: true };
 }
 
+// Tells the person by email. The sanction has already been saved, so a mail
+// problem is logged and never undoes it or fails the action.
+async function notifyByEmail(
+  userId: string,
+  build: (to: string, rulesUrl: string) => EmailMessage,
+) {
+  try {
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { email: true } });
+    if (!user) return;
+    const rulesUrl = new URL("/rules", process.env.BETTER_AUTH_URL ?? "http://localhost:3000").href;
+    await sendEmail(build(user.email, rulesUrl));
+  } catch (error) {
+    console.error("[sanctions] Could not send the notification email", error);
+  }
+}
+
 export async function suspendUser(input: {
   userId: string;
   // ISO date-time when the user gets access back.
@@ -112,15 +129,10 @@ export async function suspendUser(input: {
     // Log them out everywhere; the session hook in lib/auth.ts stops new logins.
     prisma.session.deleteMany({ where: { userId: input.userId } }),
   ]);
-
   if (input.notifyByEmail) {
-    try {
-      await sendEmail(
-        suspensionSanctionEmail(permission.targetEmail, endAt, reason),
-      );
-    } catch (error) {
-      console.error("[sanctions] Could not send suspension email", error);
-    }
+    await notifyByEmail(input.userId, (to, rulesUrl) =>
+      suspensionEmail({ to, reason, rulesUrl, until: formatThaiDate(endAt) }),
+    );
   }
 
   revalidatePath("/admin");
@@ -164,13 +176,8 @@ export async function banUser(input: {
       : []),
   ]);
   signalMessagesChanged(hiddenIds);
-
   if (input.notifyByEmail) {
-    try {
-      await sendEmail(banSanctionEmail(permission.targetEmail, reason));
-    } catch (error) {
-      console.error("[sanctions] Could not send ban email", error);
-    }
+    await notifyByEmail(input.userId, (to, rulesUrl) => banEmail({ to, reason, rulesUrl }));
   }
 
   revalidatePath("/admin");

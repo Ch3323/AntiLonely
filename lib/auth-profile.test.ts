@@ -6,42 +6,13 @@ import {
 } from './auth-profile.ts';
 
 describe('auth profile helpers', () => {
-  it('uses trimmed Google account name first and falls back to given_name then generated username', () => {
-    assert.deepEqual(
-      mapGoogleProfileToUser(
-        { name: '  สมชาย ใจดี  ', given_name: 'สมชาย' },
-        'user_abc123'
-      ),
-      {
-        name: 'สมชาย ใจดี',
-        username: 'user_abc123',
-        displayUsername: 'user_abc123',
-        image: undefined,
-      }
-    );
-
-    assert.deepEqual(
-      mapGoogleProfileToUser(
-        { name: '   ', given_name: '  Somchai  ' },
-        'user_abc123'
-      ),
-      {
-        name: 'Somchai',
-        username: 'user_abc123',
-        displayUsername: 'user_abc123',
-        image: undefined,
-      }
-    );
-
-    assert.deepEqual(
-      mapGoogleProfileToUser({ name: '', given_name: ' ' }, 'user_abc123'),
-      {
-        name: 'user_abc123',
-        username: 'user_abc123',
-        displayUsername: 'user_abc123',
-        image: undefined,
-      }
-    );
+  it('keeps nothing from the Google profile: the nickname starts as the generated username and there is no photo', () => {
+    assert.deepEqual(mapGoogleProfileToUser('user_abc123'), {
+      name: 'user_abc123',
+      username: 'user_abc123',
+      displayUsername: 'user_abc123',
+      image: undefined,
+    });
   });
 
   it('clears displayUsername when updating nickname only, leaving explicit displayUsername updates intact', () => {
