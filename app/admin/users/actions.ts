@@ -2,6 +2,7 @@
 
 import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
+import { liftSanctionEmail, sendEmail } from "@/lib/email";
 import { prisma } from "@/lib/prisma";
 import { DEFAULT_ROOM_EMOJI, isUuid } from "@/lib/room-board";
 import { addDuration, maskEmail, SUSPENSION_PRESET_DAYS } from "@/lib/sanctions";
@@ -111,15 +112,29 @@ export async function updateUsersStatus(
     }
   }
 
-  await prisma.$transaction(async (tx) => {
+  const liftedEmails = await prisma.$transaction(async (tx) => {
     if (status === "active") {
+      const allowedTypes =
+        actorRole === "admin"
+          ? ({ in: ["suspension", "ban"] as ("suspension" | "ban")[] })
+          : ("suspension" as const);
+
+      const activeSanctions = await tx.sanction.findMany({
+        where: {
+          userId: { in: userIds },
+          type: allowedTypes,
+          liftedAt: null,
+          OR: [{ endAt: null }, { endAt: { gt: now } }],
+        },
+        select: {
+          user: { select: { email: true } },
+        },
+      });
+
       await tx.sanction.updateMany({
         where: {
           userId: { in: userIds },
-          type:
-            actorRole === "admin"
-              ? { in: ["suspension", "ban"] }
-              : "suspension",
+          type: allowedTypes,
           liftedAt: null,
         },
         data: {
@@ -127,7 +142,7 @@ export async function updateUsersStatus(
         },
       });
 
-      return;
+      return [...new Set(activeSanctions.map((s) => s.user.email))];
     }
 
     const sanctionType =
@@ -168,7 +183,21 @@ export async function updateUsersStatus(
     await tx.session.deleteMany({
       where: { userId: { in: userIds } },
     });
+
+    return [] as string[];
   });
+
+  if (liftedEmails.length > 0) {
+    await Promise.allSettled(
+      liftedEmails.map(async (email) => {
+        try {
+          await sendEmail(liftSanctionEmail(email));
+        } catch (error) {
+          console.error("[sanctions] Could not send lift sanction email", error);
+        }
+      }),
+    );
+  }
 
   return { success: true };
 }

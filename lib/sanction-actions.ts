@@ -3,6 +3,12 @@
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { auth } from "./auth";
+import {
+  banSanctionEmail,
+  sendEmail,
+  suspensionSanctionEmail,
+  warningSanctionEmail,
+} from "./email";
 import { prisma } from "./prisma";
 import { signalMessagesChanged } from "./room-live-notify";
 import { suspensionEndsWithinLimit } from "./sanctions";
@@ -16,7 +22,10 @@ const MAX_REASON_LENGTH = 1000;
 async function checkPermission(
   targetUserId: string,
   action: "warn" | "suspend" | "ban",
-): Promise<{ ok: true; issuedById: string } | { ok: false; error: string }> {
+): Promise<
+  | { ok: true; issuedById: string; targetEmail: string }
+  | { ok: false; error: string }
+> {
   const session = await auth.api.getSession({ headers: await headers() });
   const role = session?.user.role;
   if (!session || (role !== "admin" && (action === "ban" || role !== "moderator"))) {
@@ -24,10 +33,13 @@ async function checkPermission(
   }
   if (session.user.id === targetUserId) return { ok: false, error: "ตักเตือน ระงับ หรือแบนบัญชีตัวเองไม่ได้" };
 
-  const target = await prisma.user.findUnique({ where: { id: targetUserId }, select: { role: true } });
+  const target = await prisma.user.findUnique({
+    where: { id: targetUserId },
+    select: { role: true, email: true },
+  });
   if (!target) return { ok: false, error: "ไม่พบผู้ใช้นี้" };
   if (target.role === "admin") return { ok: false, error: "ตักเตือน ระงับ หรือแบนผู้ดูแลระบบไม่ได้" };
-  return { ok: true, issuedById: session.user.id };
+  return { ok: true, issuedById: session.user.id, targetEmail: target.email };
 }
 
 export async function warnUser(input: {
@@ -60,7 +72,15 @@ export async function warnUser(input: {
       },
     });
   });
-  // TODO: send the email when an email service is set up (input.notifyByEmail).
+
+  if (input.notifyByEmail) {
+    try {
+      await sendEmail(warningSanctionEmail(permission.targetEmail, reason));
+    } catch (error) {
+      console.error("[sanctions] Could not send warning email", error);
+    }
+  }
+
   revalidatePath("/admin");
   revalidatePath("/admin/users");
   revalidatePath("/admin/reports");
@@ -92,7 +112,17 @@ export async function suspendUser(input: {
     // Log them out everywhere; the session hook in lib/auth.ts stops new logins.
     prisma.session.deleteMany({ where: { userId: input.userId } }),
   ]);
-  // TODO: send the email when an email service is set up (input.notifyByEmail).
+
+  if (input.notifyByEmail) {
+    try {
+      await sendEmail(
+        suspensionSanctionEmail(permission.targetEmail, endAt, reason),
+      );
+    } catch (error) {
+      console.error("[sanctions] Could not send suspension email", error);
+    }
+  }
+
   revalidatePath("/admin");
   revalidatePath("/admin/users");
   revalidatePath("/admin/reports");
@@ -134,7 +164,15 @@ export async function banUser(input: {
       : []),
   ]);
   signalMessagesChanged(hiddenIds);
-  // TODO: send the email when an email service is set up (input.notifyByEmail).
+
+  if (input.notifyByEmail) {
+    try {
+      await sendEmail(banSanctionEmail(permission.targetEmail, reason));
+    } catch (error) {
+      console.error("[sanctions] Could not send ban email", error);
+    }
+  }
+
   revalidatePath("/admin");
   revalidatePath("/admin/users");
   revalidatePath("/admin/reports");

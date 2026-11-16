@@ -1,6 +1,6 @@
 // Outgoing email. All sending goes through sendEmail, so switching provider
-// means changing that one function. No imports here so the message builders
-// can be unit-tested with node --test.
+// means changing that one function. Kept free of Next/Prisma imports so the
+// message builders can be unit-tested with node --test.
 //
 // Real mail is sent through Resend (https://resend.com) when RESEND_API_KEY
 // and EMAIL_FROM are set (see .env.example). Without them nothing is sent:
@@ -10,6 +10,9 @@
 // trying the flows in development with made-up addresses. It is ignored in
 // production.
 
+import nodemailer from "nodemailer";
+import { formatThaiDate } from "./sanctions.ts";
+
 export type EmailMessage = {
   to: string;
   subject: string;
@@ -17,16 +20,23 @@ export type EmailMessage = {
 };
 
 export async function sendEmail(message: EmailMessage): Promise<void> {
-  const apiKey = process.env.RESEND_API_KEY;
-  const from = process.env.EMAIL_FROM;
+  const smtpUser = process.env.SMTP_USER?.trim();
+  const smtpPass = process.env.SMTP_PASS?.replace(/\s+/g, "");
+  const apiKey = process.env.RESEND_API_KEY?.trim();
+  const from =
+    process.env.EMAIL_FROM?.trim() ||
+    (smtpUser ? `AntiLonely <${smtpUser}>` : undefined);
 
   const logOnly =
     process.env.EMAIL_LOG_ONLY === "1" && process.env.NODE_ENV !== "production";
 
-  if (!apiKey || !from || logOnly) {
+  const hasSmtp = Boolean(smtpUser && smtpPass);
+  const hasResend = Boolean(apiKey && from);
+
+  if ((!hasSmtp && !hasResend) || logOnly) {
     if (process.env.NODE_ENV === "production") {
       console.error(
-        `[email] Not sent ("${message.subject}"): set RESEND_API_KEY and EMAIL_FROM to send mail.`,
+        `[email] Not sent ("${message.subject}"): set SMTP_USER/SMTP_PASS or RESEND_API_KEY/EMAIL_FROM to send mail.`,
       );
       return;
     }
@@ -42,6 +52,23 @@ export async function sendEmail(message: EmailMessage): Promise<void> {
         "",
       ].join("\n"),
     );
+    return;
+  }
+
+  if (hasSmtp) {
+    const transporter = nodemailer.createTransport({
+      service: "gmail",
+      auth: {
+        user: smtpUser,
+        pass: smtpPass,
+      },
+    });
+    await transporter.sendMail({
+      from,
+      to: message.to,
+      subject: message.subject,
+      text: message.text,
+    });
     return;
   }
 
@@ -128,6 +155,81 @@ export function verifyEmailMessage(to: string, url: string): EmailMessage {
       "ถ้าคุณไม่ได้สมัคร AntiLonely ไม่ต้องทำอะไร บัญชีจะใช้งานไม่ได้จนกว่าจะมีคนกดลิงก์นี้",
       "",
       "AntiLonely",
+    ].join("\n"),
+  };
+}
+
+// Sent when a moderator or admin issues a warning sanction with email notification enabled.
+export function warningSanctionEmail(to: string, reason: string): EmailMessage {
+  const cleanReason = reason.trim();
+  return {
+    to,
+    subject: "คำเตือนจากทีมผู้ดูแล AntiLonely",
+    text: [
+      "สวัสดี",
+      "",
+      "ทีมผู้ดูแล AntiLonely ได้ส่งคำเตือนถึงบัญชีของคุณ",
+      `เหตุผล: ${cleanReason}`,
+      "",
+      "บัญชีของคุณยังสามารถเข้าใช้งานได้ตามปกติ ขอความร่วมมือปฏิบัติตามกติกาของชุมชนเพื่อให้พื้นที่นี้ปลอดภัยสำหรับทุกคน",
+      "",
+      "ทีมผู้ดูแล AntiLonely",
+    ].join("\n"),
+  };
+}
+
+// Sent when a moderator or admin temporarily suspends an account with email notification enabled.
+export function suspensionSanctionEmail(
+  to: string,
+  endAt: Date,
+  reason: string,
+): EmailMessage {
+  const cleanReason = reason.trim();
+  return {
+    to,
+    subject: "บัญชี AntiLonely ของคุณถูกระงับชั่วคราว",
+    text: [
+      "สวัสดี",
+      "",
+      `บัญชี AntiLonely ของคุณถูกระงับการใช้งานชั่วคราวจนถึง\nวันที่ ${formatThaiDate(endAt)}`,
+      ...(cleanReason ? [`เหตุผล: ${cleanReason}`] : []),
+      "",
+      "คุณจะสามารถกลับมาเข้าสู่ระบบและใช้งานได้อีกครั้ง\nเมื่อครบกำหนด",
+      "",
+      "ทีมผู้ดูแล AntiLonely",
+    ].join("\n"),
+  };
+}
+
+// Sent when an admin permanently bans an account with email notification enabled.
+export function banSanctionEmail(to: string, reason: string): EmailMessage {
+  const cleanReason = reason.trim();
+  return {
+    to,
+    subject: "บัญชี AntiLonely ของคุณถูกแบนถาวร",
+    text: [
+      "สวัสดี",
+      "",
+      "บัญชี AntiLonely ของคุณถูกระงับการใช้งานถาวรเนื่องจากละเมิดกติกาของชุมชน",
+      `เหตุผล: ${cleanReason}`,
+      "",
+      "ทีมผู้ดูแล AntiLonely",
+    ].join("\n"),
+  };
+}
+
+// Sent when a moderator or admin lifts an active suspension or ban on an account.
+export function liftSanctionEmail(to: string): EmailMessage {
+  return {
+    to,
+    subject: "บัญชี AntiLonely ของคุณกลับมาใช้งานได้ตามปกติแล้ว",
+    text: [
+      "สวัสดี",
+      "",
+      "ทีมผู้ดูแล AntiLonely ได้ปลดการระงับการใช้งานบัญชีของคุณแล้ว",
+      "ตอนนี้คุณสามารถกลับเข้าสู่ระบบและใช้งานได้ตามปกติ",
+      "",
+      "ทีมผู้ดูแล AntiLonely",
     ].join("\n"),
   };
 }
