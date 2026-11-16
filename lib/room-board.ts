@@ -171,16 +171,41 @@ export interface DbAuthorSnapshot {
   image?: string | null;
 }
 
+const SYSTEM_USERNAME_PATTERN = /^user_[a-z0-9]+$/i;
+
+function isSystemUsernameAlias(candidate: string, username: string): boolean {
+  if (!candidate) return true;
+  if (username && candidate.toLowerCase() === username.toLowerCase()) {
+    return true;
+  }
+  return SYSTEM_USERNAME_PATTERN.test(candidate);
+}
+
+/**
+ * Resolves the human-readable display alias shown in rooms and post threads.
+ * Auth-created users store their chosen nickname in `name` while `username` and
+ * `displayUsername` hold a generated `user_*` handle; seeded accounts store a
+ * distinct Thai alias in `displayUsername`.
+ */
 export function resolveAuthorAlias(
   author: DbAuthorSnapshot | null | undefined
 ): string {
   if (!author) return 'นิรนาม';
-  return (
-    author.displayUsername?.trim() ||
-    author.name?.trim() ||
-    author.username?.trim() ||
-    'นิรนาม'
-  );
+
+  const name = author.name?.trim() || '';
+  const displayUsername = author.displayUsername?.trim() || '';
+  const username = author.username?.trim() || '';
+
+  if (displayUsername && !isSystemUsernameAlias(displayUsername, username)) {
+    return displayUsername;
+  }
+  if (name) {
+    return name;
+  }
+  if (displayUsername) {
+    return displayUsername;
+  }
+  return username || 'นิรนาม';
 }
 
 export interface DbReactionRow {

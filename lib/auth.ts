@@ -95,12 +95,14 @@ export const auth = betterAuth({
             clientSecret: googleClientSecret,
             // Let people choose which Google account to use every time.
             prompt: "select_account",
-            // This is an anonymous app: don't keep the person's real name or
-            // Google photo. Their name becomes a random username instead.
+            // Keep the Google account name as the user's display name while
+            // assigning a random unique username and omitting the Google photo.
             // (Only applied when the account is first created.)
-            mapProfileToUser: async () => {
+            mapProfileToUser: async (profile) => {
               const username = await generateUsername();
-              return { name: username, username, displayUsername: username, image: undefined };
+              const name =
+                profile.name?.trim() || profile.given_name?.trim() || username;
+              return { name, username, displayUsername: username, image: undefined };
             },
           },
         }
