@@ -15,10 +15,10 @@ type CategoryFilter = "all" | ActivityCategory;
 const PAGE_SIZE = 10;
 
 const RANGE_OPTIONS = [
-  { value: "all", label: "ทั้งหมด" },
   { value: "1", label: "24 ชั่วโมงล่าสุด" },
   { value: "7", label: "7 วันล่าสุด" },
   { value: "30", label: "30 วันล่าสุด" },
+  { value: "all", label: "ช่วงเวลาทั้งหมด" },
 ] as const;
 
 const CATEGORY_FILTERS: readonly { id: CategoryFilter; label: string }[] = [
@@ -61,6 +61,35 @@ function pageItems(page: number, totalPages: number): (number | "…")[] {
   return items;
 }
 
+function FilterSelect({
+  value,
+  onChange,
+  ariaLabel,
+  children,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  ariaLabel: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="relative">
+      <select
+        aria-label={ariaLabel}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="h-9 cursor-pointer appearance-none rounded-lg border-[1.5px] border-edge-strong bg-white pl-3.5 pr-9 text-[13px] outline-none hover:border-gray-300 focus:border-kmutt-orange"
+      >
+        {children}
+      </select>
+      <Icon
+        name="chevron-down"
+        className="pointer-events-none absolute right-3 top-1/2 size-3.5 -translate-y-1/2 text-ink-soft"
+      />
+    </div>
+  );
+}
+
 export default function AdminLogsClient({
   feed,
   serverTime,
@@ -69,7 +98,9 @@ export default function AdminLogsClient({
   serverTime: string;
 }) {
   const [category, setCategory] = useState<CategoryFilter>("all");
-  const [range, setRange] = useState("all");
+  const [range, setRange] = useState("7");
+  const [actionFilter, setActionFilter] = useState("all");
+  const [adminFilter, setAdminFilter] = useState("all");
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
 
@@ -97,6 +128,31 @@ export default function AdminLogsClient({
       .slice(0, feed.perSourceLimit);
   }, [feed, category]);
 
+  const adminItems = useMemo(
+    () =>
+      feed.items
+        .filter((item) => item.category === "admin")
+        .slice(0, feed.perSourceLimit),
+    [feed],
+  );
+
+  const actionOptions = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          adminItems
+            .map((item) => item.actionLabel)
+            .filter((label): label is string => Boolean(label)),
+        ),
+      ),
+    [adminItems],
+  );
+
+  const adminOptions = useMemo(
+    () => Array.from(new Set(adminItems.map((item) => item.actor))),
+    [adminItems],
+  );
+
   const since =
     range === "all" ? 0 : now - Number(range) * 24 * 60 * 60 * 1000;
 
@@ -104,6 +160,14 @@ export default function AdminLogsClient({
     const q = query.trim().toLowerCase();
     return scopedItems.filter((item) => {
       if (since > 0 && Date.parse(item.createdAt) < since) return false;
+      if (category === "admin") {
+        if (actionFilter !== "all" && item.actionLabel !== actionFilter) {
+          return false;
+        }
+        if (adminFilter !== "all" && item.actor !== adminFilter) {
+          return false;
+        }
+      }
       if (
         q &&
         ![item.actor, item.title, item.subtitle ?? ""].some((v) =>
@@ -114,7 +178,7 @@ export default function AdminLogsClient({
       }
       return true;
     });
-  }, [scopedItems, since, query]);
+  }, [scopedItems, since, category, actionFilter, adminFilter, query]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
@@ -144,6 +208,8 @@ export default function AdminLogsClient({
                 aria-pressed={category === item.id}
                 onClick={() => {
                   setCategory(item.id);
+                  setActionFilter("all");
+                  setAdminFilter("all");
                   setPage(1);
                 }}
                 className={`rounded-lg border-[1.5px] px-3.5 py-2 text-[13px] font-medium transition ${
@@ -157,27 +223,56 @@ export default function AdminLogsClient({
             ))}
           </div>
 
-          <div className="relative">
-            <select
-              aria-label="ช่วงเวลา"
-              value={range}
-              onChange={(e) => {
-                setRange(e.target.value);
-                setPage(1);
-              }}
-              className="h-9 cursor-pointer appearance-none rounded-lg border-[1.5px] border-edge-strong bg-white pl-3.5 pr-9 text-[13px] outline-none hover:border-gray-300 focus:border-kmutt-orange"
-            >
-              {RANGE_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
-            <Icon
-              name="chevron-down"
-              className="pointer-events-none absolute right-3 top-1/2 size-3.5 -translate-y-1/2 text-ink-soft"
-            />
-          </div>
+          <FilterSelect
+            ariaLabel="ช่วงเวลา"
+            value={range}
+            onChange={(val) => {
+              setRange(val);
+              setPage(1);
+            }}
+          >
+            {RANGE_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </FilterSelect>
+
+          {category === "admin" && (
+            <>
+              <FilterSelect
+                ariaLabel="ประเภทการกระทำ"
+                value={actionFilter}
+                onChange={(val) => {
+                  setActionFilter(val);
+                  setPage(1);
+                }}
+              >
+                <option value="all">ทุกการกระทำ</option>
+                {actionOptions.map((a) => (
+                  <option key={a} value={a}>
+                    {a}
+                  </option>
+                ))}
+              </FilterSelect>
+
+              <FilterSelect
+                ariaLabel="ผู้ดูแล"
+                value={adminFilter}
+                onChange={(val) => {
+                  setAdminFilter(val);
+                  setPage(1);
+                }}
+              >
+                <option value="all">ผู้ดูแลทุกคน</option>
+                {adminOptions.map((a) => (
+                  <option key={a} value={a}>
+                    {a}
+                  </option>
+                ))}
+              </FilterSelect>
+            </>
+          )}
         </div>
 
         <div className="relative w-full sm:w-80">

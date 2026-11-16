@@ -41,6 +41,7 @@ export interface SummaryActivityItem {
   createdAt: string;
   actor: string;
   category: ActivityCategory;
+  actionLabel?: string;
   title: string;
   subtitle?: string;
 }
@@ -300,13 +301,15 @@ export function buildSummaryActivityFeed(input: {
       subtitle: `เหตุผล: ${getReportReasonLabel(report.reason)}`,
     })),
     ...input.sanctions.map((sanction) => {
+      const actionLabel = SANCTION_ACTION_LABELS[sanction.type];
       const subtitle = formatSanctionSubtitle(sanction, nowMs);
       return {
         id: `sanction-${sanction.id}`,
         createdAt: sanction.createdAt.toISOString(),
         actor: resolveActor(sanction.issuedBy, 'ระบบ/ผู้ดูแล'),
         category: 'admin' as const,
-        title: `${SANCTION_ACTION_LABELS[sanction.type]} ${resolveAuthorAlias(sanction.user)}`,
+        actionLabel,
+        title: `${actionLabel} ${resolveAuthorAlias(sanction.user)}`,
         ...(subtitle ? { subtitle } : {}),
       };
     }),

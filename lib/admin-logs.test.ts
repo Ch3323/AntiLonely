@@ -195,8 +195,10 @@ describe('admin-logs helpers', () => {
     assert.equal(feed.userCutoffMs, NOW_MS - 10 * 60 * 1000);
 
     const byId = new Map(feed.items.map((item) => [item.id, item]));
+    assert.equal(byId.get('sanction-s-lifted')?.actionLabel, 'ระงับผู้ใช้');
     assert.equal(byId.get('sanction-s-lifted')?.subtitle, 'เหตุผล: คุกคาม · ปลดแล้ว');
     assert.equal(byId.get('sanction-s-active')?.subtitle, 'เหตุผล: พูดจาไม่สุภาพ · เหลือ 7 วัน');
+    assert.equal(byId.get('sanction-s-ban')?.actionLabel, 'แบนผู้ใช้');
     assert.equal(byId.get('sanction-s-ban')?.subtitle, 'เหตุผล: สแปมซ้ำ · ถาวร');
     assert.equal(byId.get('sanction-s-expired')?.subtitle, 'หมดอายุแล้ว');
     assert.equal(byId.get('report-rp1')?.subtitle, 'เหตุผล: เนื้อหาไม่เหมาะสม: ทดสอบ');
