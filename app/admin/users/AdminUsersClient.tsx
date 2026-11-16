@@ -137,9 +137,12 @@ export default function AdminUsersClient({
 
   const registered = users.length;
 
-  // ยังไม่มี lastActiveAt ใน Database จึงไม่สามารถคำนวณคนออนไลน์จริงได้
+  const selectableVisible = visible.filter(
+    (u) => u.id !== viewerId && u.role !== "admin",
+  );
   const allSelected =
-    visible.length > 0 && visible.every((u) => selected.has(u.id));
+    selectableVisible.length > 0 &&
+    selectableVisible.every((u) => selected.has(u.id));
 
   function toggleOne(id: string) {
     setSelected((prev) => {
@@ -159,7 +162,7 @@ export default function AdminUsersClient({
     setSelected(
       allSelected
         ? new Set()
-        : new Set(visible.map((u) => u.id)),
+        : new Set(selectableVisible.map((u) => u.id)),
     );
   }
 
@@ -392,10 +395,12 @@ export default function AdminUsersClient({
                   <input
                     type="checkbox"
                     checked={selected.has(u.id)}
-                    disabled={isPending}
+                    disabled={
+                      isPending || u.id === viewerId || u.role === "admin"
+                    }
                     onChange={() => toggleOne(u.id)}
                     aria-label={`เลือก ${u.name}`}
-                    className="h-4 w-4 accent-kmutt-orange-dark"
+                    className="h-4 w-4 accent-kmutt-orange-dark disabled:cursor-not-allowed disabled:opacity-40"
                   />
                 </td>
 

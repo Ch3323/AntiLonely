@@ -1,5 +1,6 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
 import { liftSanctionEmail, sendEmail } from "@/lib/email";
@@ -49,6 +50,7 @@ export async function updateUserRole(userId: string, role: UserRole) {
     data: { role },
   });
 
+  revalidatePath("/admin/users");
   return { success: true };
 }
 
@@ -199,6 +201,10 @@ export async function updateUsersStatus(
     );
   }
 
+  revalidatePath("/admin");
+  revalidatePath("/admin/users");
+  revalidatePath("/admin/reports");
+  revalidatePath("/admin/logs");
   return { success: true };
 }
 

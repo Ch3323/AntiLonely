@@ -2,11 +2,12 @@
 // means changing that one function. Kept free of Next/Prisma imports so the
 // message builders can be unit-tested with node --test.
 //
-// Real mail is sent through Resend (https://resend.com) when RESEND_API_KEY
-// and EMAIL_FROM are set (see .env.example). Without them nothing is sent:
-// in development the message, link included, is printed to the server
-// console instead; in production only an error is logged, never the link.
-// EMAIL_LOG_ONLY=1 prints instead of sending even when the keys are set, for
+// Real mail is sent through Gmail SMTP (when SMTP_USER and SMTP_PASS are set)
+// or Resend (https://resend.com, when RESEND_API_KEY and EMAIL_FROM are set).
+// Without either provider configured nothing is sent: in development the
+// message, link included, is printed to the server console instead; in
+// production only an error is logged, never the link.
+// EMAIL_LOG_ONLY=1 prints instead of sending even when keys are set, for
 // trying the flows in development with made-up addresses. It is ignored in
 // production.
 
