@@ -11,7 +11,12 @@
 // trying the flows in development with made-up addresses. It is ignored in
 // production.
 
-import nodemailer from "nodemailer";
+import {
+  RESET_LINK_LIFETIME_SECONDS,
+  VERIFY_LINK_LIFETIME_SECONDS,
+} from "./email-constants.ts";
+
+export { RESET_LINK_LIFETIME_SECONDS, VERIFY_LINK_LIFETIME_SECONDS };
 
 export type EmailMessage = {
   to: string;
@@ -56,6 +61,7 @@ export async function sendEmail(message: EmailMessage): Promise<void> {
   }
 
   if (hasSmtp) {
+    const nodemailer = (await import("nodemailer")).default;
     const transporter = nodemailer.createTransport({
       service: "gmail",
       auth: {
@@ -92,8 +98,6 @@ export async function sendEmail(message: EmailMessage): Promise<void> {
 
 // How long a reset link works, in seconds (Better Auth's
 // resetPasswordTokenExpiresIn). The email and the form both say so.
-export const RESET_LINK_LIFETIME_SECONDS = 60 * 60;
-
 export function resetPasswordEmail(to: string, url: string): EmailMessage {
   return {
     to,
@@ -136,8 +140,6 @@ export function googleOnlyAccountEmail(to: string, loginUrl: string): EmailMessa
 
 // How long the link in the "confirm your email" message works, in seconds
 // (Better Auth's emailVerification.expiresIn). The email says so.
-export const VERIFY_LINK_LIFETIME_SECONDS = 24 * 60 * 60;
-
 // Sent after signing up with an email and password, and again on request.
 // The account can't be used until the link has been opened.
 export function verifyEmailMessage(to: string, url: string): EmailMessage {

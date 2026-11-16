@@ -5,7 +5,7 @@ import AuthCard, { AuthLink } from "@/component/AuthCard";
 import Spinner from "@/component/Spinner";
 import { authClient } from "@/lib/auth-client";
 import { authErrorMessage } from "@/lib/auth-errors";
-import { RESET_LINK_LIFETIME_SECONDS } from "@/lib/email";
+import { RESET_LINK_LIFETIME_SECONDS } from "@/lib/email-constants";
 import {
   alertClass,
   disabledButtonClass,
