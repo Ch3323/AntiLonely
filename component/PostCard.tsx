@@ -27,6 +27,7 @@ type Props = {
   content: string;
   isOwner?: boolean;
   isEdited?: boolean;
+  timeBeside?: boolean;
   reactions?: { emoji: string; count: number; reactedByMe?: boolean }[];
   replyCount: number;
   onEditPost?: (newContent: string) => void;
@@ -79,6 +80,7 @@ const PostCard = memo(function PostCard({
   content,
   isOwner = false,
   isEdited = false,
+  timeBeside = false,
   reactions: initialReactions = noReactions,
   replyCount,
   onEditPost,
@@ -187,6 +189,20 @@ const PostCard = memo(function PostCard({
     onReportSubmitted?.("คัดลอกลิงก์กระทู้เรียบร้อยแล้ว");
   };
 
+    const timeText = `${time}${isEdited ? " (แก้ไขแล้ว)" : ""}`;
+    const timeClass = "text-xs font-normal leading-[1.4] text-ink-soft";
+    const timeNode = createdAt ? (
+    <time
+      dateTime={createdAt}
+      suppressHydrationWarning
+      className={timeClass}
+    >
+      {timeText}
+    </time>
+  ) : (
+    <span className={timeClass}>{timeText}</span>
+  );
+
   return (
     <article
       className={`flex w-full flex-col gap-3 p-4 leading-[1.4] sm:p-5 ${indexCardClass}`}
@@ -211,22 +227,9 @@ const PostCard = memo(function PostCard({
                   {room}
                 </span>
               )}
+              {timeBeside && timeNode}
             </div>
-            {createdAt ? (
-              <time
-                dateTime={createdAt}
-                suppressHydrationWarning
-                className="text-xs font-normal leading-[1.4] text-ink-soft"
-              >
-                {time}
-                {isEdited ? " (แก้ไขแล้ว)" : ""}
-              </time>
-            ) : (
-              <span className="text-xs font-normal leading-[1.4] text-ink-soft">
-                {time}
-                {isEdited ? " (แก้ไขแล้ว)" : ""}
-              </span>
-            )}
+            {!timeBeside && timeNode}  
           </div>
         </div>
 
