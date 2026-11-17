@@ -106,9 +106,14 @@ function RulesList({
     <ul className={`list-none ${className}`}>
       {rules.map((rule, index) => (
         <li key={index} className="flex gap-2">
-          <span aria-hidden="true" className="w-5 shrink-0 text-right text-ink-soft">
-            {style === "bullet" ? "•" : `${index + 1}.`}
-          </span>
+          {style !== "none" && (
+            <span
+              aria-hidden="true"
+              className="w-5 shrink-0 text-right text-ink-soft"
+            >
+              {style === "bullet" ? "•" : `${index + 1}.`}
+            </span>
+          )}
           <span className="min-w-0 break-words">{rule}</span>
         </li>
       ))}

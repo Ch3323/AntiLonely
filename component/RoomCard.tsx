@@ -11,7 +11,14 @@ import { roomLook } from "@/lib/styles";
 
 // An index card taped into the notebook, with an ink outline and a shadow in
 // the room's color (roomLook). It lifts and tilts a little on hover.
-export default function RoomCard({ room }: { room: Room }) {
+// `wide` cards take more of the grid (see RoomList) and get a bigger title.
+export default function RoomCard({
+  room,
+  wide = false,
+}: {
+  room: Room;
+  wide?: boolean;
+}) {
   const { card, tile, tape } = roomLook(room);
 
   return (
@@ -28,7 +35,9 @@ export default function RoomCard({ room }: { room: Room }) {
         </span>
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-2">
-            <h3 className="font-display text-lg font-semibold leading-snug">
+            <h3
+              className={`font-display font-semibold leading-snug ${wide ? "text-xl" : "text-lg"}`}
+            >
               {/* The ::after stretches over the whole card so the card opens the
                   room; the join button sits above it and stays separate. The
                   card draws the focus ring for it. */}
@@ -43,7 +52,9 @@ export default function RoomCard({ room }: { room: Room }) {
             </h3>
             <RoomTags room={room} />
           </div>
-          <p className="mt-0.5 line-clamp-2 text-sm text-ink-soft">
+          <p
+            className={`mt-0.5 text-sm text-ink-soft ${wide ? "line-clamp-3" : "line-clamp-2"}`}
+          >
             {room.description}
           </p>
         </div>
@@ -62,14 +73,7 @@ export default function RoomCard({ room }: { room: Room }) {
 // The room's latest posts, quoted on a little note so you can see what people
 // are talking about before you open it.
 function RoomPreview({ room }: { room: Room }) {
-  if (!room.preview) {
-    return (
-      <p className="flex items-center gap-1.5 rounded-lg bg-mist/60 px-3 py-2 text-xs text-mist-ink">
-        <Icon name="lock" className="size-3.5 shrink-0" />
-        เข้าร่วมห้องเพื่ออ่านกระทู้
-      </p>
-    );
-  }
+  if (!room.preview) return null;
   if (room.preview.length === 0) {
     return (
       <p className="rounded-lg bg-cream px-3 py-2 text-xs text-ink-soft">
