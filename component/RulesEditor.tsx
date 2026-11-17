@@ -1,44 +1,58 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
 import Icon from "@/component/Icon";
 import type { RoomRulesStyle } from "@/lib/room-board";
-import { inputClass } from "@/lib/styles";
+import { inputClass, stickerToggleClass } from "@/lib/styles";
 
 export const MAX_RULE_ITEMS = 20;
 const MAX_RULE_LENGTH = 200;
 
-const STYLE_OPTIONS: {
-  value: RoomRulesStyle;
-  label: string;
-  sample: string[];
-}[] = [
-  { value: "none", label: "ไม่มีตัวเลขหรือสัญลักษณ์", sample: ["", ""] },
-  { value: "number", label: "ตัวเลข", sample: ["1.", "2."] },
-  { value: "bullet", label: "สัญลักษณ์จุด", sample: ["•", "•"] },
-];
-
-// A tiny two-line sketch of how the rules will look in that style.
-function StyleSample({ sample }: { sample: string[] }) {
+// Each style is an icon of a short list written that way. The words live in
+// the label (and tooltip) for screen readers and for hovering.
+function ListGlyph({ style }: { style: RoomRulesStyle }) {
+  const rows = [6, 12, 18];
   return (
-    <span
+    <svg
+      viewBox="0 0 24 24"
+      className="size-4"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
       aria-hidden="true"
-      className="flex w-14 shrink-0 flex-col gap-1 rounded-md border border-edge bg-white px-2 py-1.5"
     >
-      {sample.map((marker, index) => (
-        <span key={index} className="flex items-center gap-1">
-          <span className="w-3 text-center text-[10px] leading-none text-ink-soft">
-            {marker}
-          </span>
-          <span className="h-1 flex-1 rounded-full bg-edge-strong" />
-        </span>
+      {rows.map((y, index) => (
+        <g key={y}>
+          {style === "bullet" && (
+            <circle cx="4" cy={y} r="1.4" fill="currentColor" stroke="none" />
+          )}
+          {style === "number" && (
+            <text
+              x="1.5"
+              y={y + 2.6}
+              fontSize="7"
+              fontWeight="700"
+              fill="currentColor"
+              stroke="none"
+            >
+              {index + 1}
+            </text>
+          )}
+          <line x1={style === "none" ? 3 : 9} y1={y} x2="21" y2={y} />
+        </g>
       ))}
-    </span>
+    </svg>
   );
 }
 
-// The list-style picker: a sticker button that opens a small card of the
-// three choices, each with a sketch of the result.
+const STYLE_OPTIONS: { value: RoomRulesStyle; label: string }[] = [
+  { value: "none", label: "ไม่มีตัวเลขหรือสัญลักษณ์" },
+  { value: "number", label: "ตัวเลข" },
+  { value: "bullet", label: "Bullet point" },
+];
+
+// The list-style choice: three icon buttons side by side, the chosen one
+// pressed in and yellow like the other sticker toggles.
 function StylePicker({
   id,
   value,
@@ -48,90 +62,29 @@ function StylePicker({
   value: RoomRulesStyle;
   onChange: (value: RoomRulesStyle) => void;
 }) {
-  const [open, setOpen] = useState(false);
-  const rootRef = useRef<HTMLDivElement>(null);
-  const current = STYLE_OPTIONS.find((option) => option.value === value)!;
-
-  useEffect(() => {
-    if (!open) return;
-    function onPointerDown(event: MouseEvent) {
-      if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
-    }
-    function onKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        // Don't let the dialog behind this close as well.
-        event.stopPropagation();
-        setOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", onPointerDown);
-    document.addEventListener("keydown", onKeyDown, true);
-    return () => {
-      document.removeEventListener("mousedown", onPointerDown);
-      document.removeEventListener("keydown", onKeyDown, true);
-    };
-  }, [open]);
-
   return (
-    <div ref={rootRef} className="relative flex flex-col gap-1">
-      <span id={`${id}-label`} className="text-xs font-semibold text-ink-soft">
-        รูปแบบรายการ
-      </span>
-      <button
-        id={id}
-        type="button"
-        aria-haspopup="listbox"
-        aria-expanded={open}
-        aria-labelledby={`${id}-label ${id}`}
-        onClick={() => setOpen((prev) => !prev)}
-        className="flex w-full cursor-pointer items-center gap-3 rounded-lg border-[1.5px] border-edge-strong bg-white px-3 py-2 text-left text-sm hover:border-ink focus-visible:border-kmutt-orange sm:w-72"
-      >
-        <StyleSample sample={current.sample} />
-        <span className="min-w-0 flex-1 font-medium">{current.label}</span>
-        <Icon
-          name="chevron-down"
-          className={`size-4 shrink-0 text-ink-soft motion-safe:transition-transform ${
-            open ? "rotate-180" : ""
-          }`}
-        />
-      </button>
-      {open && (
-        <ul
-          role="listbox"
-          aria-labelledby={`${id}-label`}
-          className="absolute left-0 top-full z-20 mt-1.5 flex w-full flex-col gap-0.5 rounded-xl border-[1.5px] border-ink bg-white p-1.5 shadow-sticker sm:w-72"
-        >
-          {STYLE_OPTIONS.map((option) => {
-            const selected = option.value === value;
-            return (
-              <li
-                key={option.value}
-                role="option"
-                aria-selected={selected}
-                tabIndex={0}
-                onClick={() => {
-                  onChange(option.value);
-                  setOpen(false);
-                }}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" || event.key === " ") {
-                    event.preventDefault();
-                    onChange(option.value);
-                    setOpen(false);
-                  }
-                }}
-                className={`flex cursor-pointer items-center gap-3 rounded-lg px-2.5 py-2 text-sm outline-none hover:bg-butter focus-visible:bg-butter ${
-                  selected ? "bg-butter font-semibold" : ""
-                }`}
-              >
-                <StyleSample sample={option.sample} />
-                <span className="min-w-0 flex-1">{option.label}</span>
-                {selected && <Icon name="check" className="size-4 shrink-0" />}
-              </li>
-            );
-          })}
-        </ul>
-      )}
+    <div
+      id={id}
+      role="group"
+      aria-label="รูปแบบรายการ"
+      className="mb-2 flex items-center gap-1.5"
+    >
+      {STYLE_OPTIONS.map((option) => {
+        const selected = option.value === value;
+        return (
+          <button
+            key={option.value}
+            type="button"
+            aria-pressed={selected}
+            aria-label={option.label}
+            title={option.label}
+            onClick={() => onChange(option.value)}
+            className={`flex size-8 cursor-pointer items-center justify-center ${stickerToggleClass}`}
+          >
+            <ListGlyph style={option.value} />
+          </button>
+        );
+      })}
     </div>
   );
 }

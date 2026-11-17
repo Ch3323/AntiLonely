@@ -11,14 +11,7 @@ import { roomLook } from "@/lib/styles";
 
 // An index card taped into the notebook, with an ink outline and a shadow in
 // the room's color (roomLook). It lifts and tilts a little on hover.
-// `wide` cards take more of the grid (see RoomList) and get a bigger title.
-export default function RoomCard({
-  room,
-  wide = false,
-}: {
-  room: Room;
-  wide?: boolean;
-}) {
+export default function RoomCard({ room }: { room: Room }) {
   const { card, tile, tape } = roomLook(room);
 
   return (
@@ -35,9 +28,7 @@ export default function RoomCard({
         </span>
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-2">
-            <h3
-              className={`font-display font-semibold leading-snug ${wide ? "text-xl" : "text-lg"}`}
-            >
+            <h3 className="font-display text-lg font-semibold leading-snug">
               {/* The ::after stretches over the whole card so the card opens the
                   room; the join button sits above it and stays separate. The
                   card draws the focus ring for it. */}
@@ -52,9 +43,7 @@ export default function RoomCard({
             </h3>
             <RoomTags room={room} />
           </div>
-          <p
-            className={`mt-0.5 text-sm text-ink-soft ${wide ? "line-clamp-3" : "line-clamp-2"}`}
-          >
+          <p className="mt-0.5 line-clamp-2 text-sm text-ink-soft">
             {room.description}
           </p>
         </div>

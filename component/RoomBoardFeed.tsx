@@ -10,6 +10,7 @@ import {
 } from "react";
 import { authClient } from "@/lib/auth-client";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import EmptyNote from "@/component/EmptyNote";
 import Header from "@/component/Header";
 import Icon from "@/component/Icon";
@@ -57,10 +58,15 @@ import {
   outlineButtonClass,
   primaryButtonClass,
   roomLook,
+  stickerToggleClass,
 } from "@/lib/styles";
 import type { MyRoom, Room } from "@/types/room";
 import type { RoomPresenceConfig } from "@/lib/room-presence";
-import type { RoomRulesStyle } from "@/lib/room-board";
+import {
+  pageWindow,
+  type PostSort,
+  type RoomRulesStyle,
+} from "@/lib/room-board";
 import {
   DeleteRoomDialog,
   EditRoomDialog,
@@ -80,6 +86,12 @@ type Props = {
     isLocked?: boolean;
   };
   initialPosts: BoardPostSummary[];
+  pagination?: {
+    page: number;
+    totalPages: number;
+    totalPosts: number;
+    sort: PostSort;
+  };
   initialMembership: RoomBoardMembershipState;
   currentUser?: RoomBoardViewer | null;
   // Owner or moderator: may delete other people's posts.
@@ -90,6 +102,89 @@ type Props = {
   serverTime?: string;
   presence?: RoomPresenceConfig | null;
 };
+
+const POST_SORT_OPTIONS: { sort: PostSort; label: string; detail: string }[] = [
+  { sort: "newest", label: "ใหม่สุด", detail: "กระทู้ล่าสุดขึ้นก่อน" },
+  {
+    sort: "popular",
+    label: "ยอดนิยม",
+    detail: "กระทู้ที่มีคนคุยและกดรีแอคชันมากที่สุดขึ้นก่อน",
+  },
+  { sort: "oldest", label: "เก่าสุด", detail: "กระทู้แรกๆ ของห้องขึ้นก่อน" },
+];
+
+// The same sticker toggles as Home's room filters: the chosen one is pressed
+// in and yellow.
+function SortMenu({
+  current,
+  hrefFor,
+}: {
+  current: PostSort;
+  hrefFor: (sort: PostSort) => string;
+}) {
+  return (
+    <div
+      role="group"
+      aria-label="เรียงกระทู้"
+      className="-mt-1 flex flex-wrap items-center justify-end gap-2"
+    >
+      <span className="text-sm text-ink-soft">เรียงตาม</span>
+      {POST_SORT_OPTIONS.map((option) => (
+        <Link
+          key={option.sort}
+          href={hrefFor(option.sort)}
+          title={option.detail}
+          aria-pressed={option.sort === current}
+          className={`flex items-center px-3.5 py-1 ${stickerToggleClass}`}
+        >
+          {option.label}
+        </Link>
+      ))}
+    </div>
+  );
+}
+
+// One button in the pager: a page number, or an arrow that greys out at the
+// end of the line.
+function PagerLink({
+  href,
+  label,
+  current = false,
+  disabled = false,
+  children,
+}: {
+  href: string;
+  label: string;
+  current?: boolean;
+  disabled?: boolean;
+  children: React.ReactNode;
+}) {
+  const base =
+    "flex size-9 items-center justify-center rounded-full border-[1.5px] text-sm font-semibold";
+  return (
+    <li>
+      {disabled ? (
+        <span
+          aria-label={label}
+          aria-disabled="true"
+          className={`${base} border-edge text-ink-soft/40`}
+        >
+          {children}
+        </span>
+      ) : (
+        <Link
+          href={href}
+          aria-label={label}
+          aria-current={current ? "page" : undefined}
+          aria-pressed={current}
+          className={`${base.replace("border-[1.5px]", "")} ${stickerToggleClass}`}
+        >
+          {children}
+        </Link>
+      )}
+    </li>
+  );
+}
 
 // The room's rules as a numbered list or a bulleted one, as its owner wrote
 // them. Markers are drawn by hand so long rules wrap under the text.
@@ -226,6 +321,7 @@ const BoardPostRow = memo(function BoardPostRow({
 export default function RoomBoardFeed({
   room,
   initialPosts,
+  pagination = { page: 1, totalPages: 1, totalPosts: 0, sort: "newest" },
   initialMembership,
   currentUser = null,
   canModerate = false,
@@ -242,6 +338,7 @@ export default function RoomBoardFeed({
     }
     return 0;
   });
+  const router = useRouter();
   const { data: session } = authClient.useSession();
   const myImage = session?.user?.image;
   const [prevInitialPosts, setPrevInitialPosts] = useState(initialPosts);
@@ -290,6 +387,15 @@ export default function RoomBoardFeed({
   const toastTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const canonicalRoomSegment = room.slug ?? room.id;
+  // A link to a page of the board in a given order. The default order and
+  // the first page leave no mark in the address.
+  const boardHref = (page: number, sort: PostSort = pagination.sort) => {
+    const params = new URLSearchParams();
+    if (sort !== "newest") params.set("sort", sort);
+    if (page > 1) params.set("page", String(page));
+    const qs = params.toString();
+    return `/rooms/${canonicalRoomSegment}${qs ? `?${qs}` : ""}`;
+  };
 
   const rulesList =
     room.rulesList && room.rulesList.length > 0
@@ -407,6 +513,10 @@ export default function RoomBoardFeed({
 
       setPosts((prev) => replaceTempPost(prev, tempId, result.data));
       showToast("ตั้งกระทู้เรียบร้อยแล้ว");
+      // The newest post shows on the first page of the newest-first order.
+      if (pagination.page > 1 || pagination.sort !== "newest") {
+        router.push(boardHref(1, "newest"));
+      }
     } catch {
       setPosts((prev) => prev.filter((p) => p.id !== tempId));
       setText(trimmed);
@@ -835,8 +945,10 @@ export default function RoomBoardFeed({
                 type="button"
                 disabled={isMembershipPending}
                 onClick={handleMembershipClick}
-                className={`px-4 py-[9px] ${outlineButtonClass} ${disabledButtonClass}`}
+                // The same peach as the joined button on Home's room cards.
+                className={`flex items-center gap-1.5 rounded-lg border-[1.5px] border-peach-edge bg-peach px-4 py-[9px] text-sm font-semibold text-kmutt-orange-dark hover:bg-peach-edge/50 ${disabledButtonClass}`}
               >
+                <Icon name="check" className="size-4" />
                 เข้าร่วมแล้ว
               </button>
             ) : (
@@ -1052,6 +1164,15 @@ export default function RoomBoardFeed({
             </form>
           )}
 
+          {/* How the posts are ordered, like Facebook's comment sort: a small
+              menu on the right with a title and a line for each choice. */}
+          {!postsHidden && pagination.totalPosts > 1 && (
+            <SortMenu
+              current={pagination.sort}
+              hrefFor={(sort) => boardHref(1, sort)}
+            />
+          )}
+
           {/* แสดงโพสต์ หรือ Empty State */}
           {postsHidden ? (
             <EmptyNote
@@ -1081,6 +1202,68 @@ export default function RoomBoardFeed({
                 onReportSubmitted={handleReportSubmittedToast}
               />
             ))
+          )}
+
+          {!postsHidden && pagination.totalPages > 1 && (
+            <nav
+              aria-label="เลือกหน้ากระทู้"
+              className="flex flex-col items-center gap-2 pt-1"
+            >
+              <ul className="flex flex-wrap items-center justify-center gap-1.5">
+                <PagerLink
+                  href={boardHref(1)}
+                  disabled={pagination.page === 1}
+                  label="ไปหน้าแรกสุด"
+                >
+                  «
+                </PagerLink>
+                <PagerLink
+                  href={boardHref(pagination.page - 1)}
+                  disabled={pagination.page === 1}
+                  label="หน้าก่อนหน้า"
+                >
+                  ‹
+                </PagerLink>
+                {pageWindow(pagination.page, pagination.totalPages).map(
+                  (number, index) =>
+                    number === null ? (
+                      <li
+                        key={`gap-${index}`}
+                        aria-hidden="true"
+                        className="px-1 text-ink-soft"
+                      >
+                        …
+                      </li>
+                    ) : (
+                      <PagerLink
+                        key={number}
+                        href={boardHref(number)}
+                        current={number === pagination.page}
+                        label={`หน้า ${number}`}
+                      >
+                        {number}
+                      </PagerLink>
+                    ),
+                )}
+                <PagerLink
+                  href={boardHref(pagination.page + 1)}
+                  disabled={pagination.page === pagination.totalPages}
+                  label="หน้าถัดไป"
+                >
+                  ›
+                </PagerLink>
+                <PagerLink
+                  href={boardHref(pagination.totalPages)}
+                  disabled={pagination.page === pagination.totalPages}
+                  label="ไปหน้าท้ายสุด"
+                >
+                  »
+                </PagerLink>
+              </ul>
+              <span className="text-xs text-ink-soft">
+                หน้า {pagination.page} จาก {pagination.totalPages}
+              </span>
+            </nav>
           )}
         </section>
 
