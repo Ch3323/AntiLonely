@@ -17,10 +17,14 @@ export default function HomeSkeleton() {
         className={`flex flex-col gap-2 self-start p-3 ${indexCardClass}`}
       >
         <div className="mb-1 border-b-[1.5px] border-dashed border-edge px-2 pb-2">
-          <div className={`h-5 w-24 rounded-md ${skeletonClass}`} />
+          <div className={`h-6 w-24 rounded-md ${skeletonClass}`} />
         </div>
-        <div className={`mx-2 h-4 w-4/5 rounded-md ${skeletonClass}`} />
-        <div className={`mt-2 h-10 rounded-lg ${skeletonClass}`} />
+        {/* "ยังไม่ได้เข้าห้องไหนเลย ลองสุ่มดูไหม": two short lines. */}
+        <div className="flex flex-col gap-1.5 px-2 py-1.5">
+          <div className={`h-[17px] w-full rounded-md ${skeletonClass}`} />
+          <div className={`h-[17px] w-3/5 rounded-md ${skeletonClass}`} />
+        </div>
+        <div className={`mt-2 h-[39px] rounded-lg ${skeletonClass}`} />
       </div>
       <div aria-hidden="true" className="flex min-w-0 flex-col gap-6">
         <div
@@ -43,18 +47,9 @@ export default function HomeSkeleton() {
               ))}
             </div>
           </div>
-          <div className="grid grid-flow-dense grid-cols-1 gap-5 sm:grid-cols-2 md:grid-cols-1 lg:grid-cols-2">
-            {Array.from({ length: 5 }, (_, index) => (
-              <div
-                key={index}
-                className={
-                  index === 0
-                    ? "sm:col-span-2 md:col-span-1 lg:col-span-2"
-                    : ""
-                }
-              >
-                <RoomCardSkeleton preview={index === 0} />
-              </div>
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 md:grid-cols-1 lg:grid-cols-2">
+            {Array.from({ length: 6 }, (_, index) => (
+              <RoomCardSkeleton key={index} preview={index < 3} />
             ))}
           </div>
         </div>

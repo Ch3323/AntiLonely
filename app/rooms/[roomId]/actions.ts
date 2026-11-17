@@ -1,6 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import type { Prisma } from '@/lib/generated/prisma/client';
 import { prisma } from '@/lib/prisma';
 import { toggleMessageReaction } from '@/lib/reaction-service';
 import { signalRoomChange } from '@/lib/room-live-notify';
@@ -18,6 +19,9 @@ import {
 } from '@/lib/server-action-helpers';
 import type { MyRoom, Room } from '@/types/room';
 import {
+  type PostSort,
+  countPages,
+  POSTS_PER_PAGE,
   canMemberEditPostInRoom,
   canMemberPostInRoom,
   DEFAULT_ROOM_EMOJI,
@@ -54,6 +58,13 @@ export interface RoomBoardData {
   };
   membership: RoomBoardMembershipState;
   initialPosts: BoardPostSummary[];
+  // Which page of posts this is, out of how many, and how many in all.
+  pagination: {
+    page: number;
+    totalPages: number;
+    totalPosts: number;
+    sort: PostSort;
+  };
   // Owner or moderator: may remove other people's posts.
   canModerate: boolean;
   // Owner: may edit the room, remove members and delete the room.
@@ -70,8 +81,37 @@ function revalidateRoomPaths(roomId: string, roomSlug?: string | null) {
   revalidatePath(`/rooms/${roomId}`);
 }
 
+function postOrderBy(sort: PostSort): Prisma.MessageOrderByWithRelationInput[] {
+  return [{ createdAt: sort === 'oldest' ? 'asc' : 'desc' }];
+}
+
+// The ids of one page of a room's posts, most popular first: visible replies
+// plus reactions, newer first on a tie. Prisma can't order by the sum of two
+// counts, so this one is SQL.
+async function popularPostIds(
+  roomId: string,
+  skip: number,
+  take: number
+): Promise<string[]> {
+  const rows = await prisma.$queryRaw<{ id: string }[]>`
+    SELECT m.id
+    FROM messages m
+    WHERE m.room_id = ${roomId}::uuid
+      AND m.parent_id IS NULL
+      AND m.status = 'visible'
+    ORDER BY (
+      (SELECT count(*) FROM messages r
+         WHERE r.parent_id = m.id AND r.status = 'visible')
+      + (SELECT count(*) FROM reactions x WHERE x.message_id = m.id)
+    ) DESC, m.created_at DESC
+    OFFSET ${skip} LIMIT ${take}`;
+  return rows.map((row) => row.id);
+}
+
 export async function getRoomBoardData(
-  roomIdOrSlug: string
+  roomIdOrSlug: string,
+  page = 1,
+  sort: PostSort = 'newest'
 ): Promise<RoomBoardData | null> {
   const target = resolveRoomLookupTarget(roomIdOrSlug);
   if (!target) {
@@ -119,8 +159,15 @@ export async function getRoomBoardData(
   const canSeePosts =
     !roomRecord.passwordHash || viewerMembership?.status === 'active';
 
+  const skip = (page - 1) * POSTS_PER_PAGE;
+  const popularIds =
+    canSeePosts && sort === 'popular'
+      ? await popularPostIds(canonicalRoomId, skip, POSTS_PER_PAGE)
+      : null;
+
   const [
-    messageRows,
+    unorderedRows,
+    totalPosts,
     myMemberships,
     unreadNotifications,
   ] = await Promise.all([
@@ -129,9 +176,11 @@ export async function getRoomBoardData(
         roomId: canonicalRoomId,
         parentId: null,
         status: 'visible',
+        ...(popularIds ? { id: { in: popularIds } } : {}),
       },
-      orderBy: { createdAt: 'desc' },
-      take: 100,
+      orderBy: postOrderBy(sort),
+      // For "popular" the page was already chosen by id above.
+      ...(popularIds ? {} : { skip, take: POSTS_PER_PAGE }),
       include: {
         author: {
           select: {
@@ -158,6 +207,11 @@ export async function getRoomBoardData(
         },
       },
     }) : Promise.resolve([]),
+    canSeePosts
+      ? prisma.message.count({
+          where: { roomId: canonicalRoomId, parentId: null, status: 'visible' },
+        })
+      : Promise.resolve(0),
     viewer
       ? prisma.roomMember.findMany({
           where: {
@@ -187,6 +241,13 @@ export async function getRoomBoardData(
         })
       : Promise.resolve(0),
   ]);
+
+  // Put the popular page back in the order the SQL chose.
+  const messageRows = popularIds
+    ? [...unorderedRows].sort(
+        (a, b) => popularIds.indexOf(a.id) - popularIds.indexOf(b.id)
+      )
+    : unorderedRows;
 
   const mappedRoom = mapDbRoomToBoardRoom(
     {
@@ -251,6 +312,12 @@ export async function getRoomBoardData(
     room: mappedRoom,
     membership,
     initialPosts,
+    pagination: {
+      page,
+      totalPages: countPages(totalPosts),
+      totalPosts,
+      sort,
+    },
     canModerate: canModerateRoom(role),
     canManage: canManageRoom(role),
     currentUser,

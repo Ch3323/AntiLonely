@@ -151,6 +151,51 @@ export function canMemberEditPostInRoom(input: {
 }
 
 // "none" is plain lines, with no number or dot in front.
+// A room's board shows this many posts a page, so a busy room doesn't make one
+// very long page (and the page loads only what it shows).
+export const POSTS_PER_PAGE = 5;
+
+/** The page number from a ?page= value: a whole number from 1, else 1. */
+export function parsePageNumber(raw: string | string[] | undefined): number {
+  const value = Array.isArray(raw) ? raw[0] : raw;
+  const page = Number.parseInt(value ?? '', 10);
+  return Number.isSafeInteger(page) && page >= 1 ? page : 1;
+}
+
+// How a room's posts are ordered. "popular" puts the busiest first (replies
+// and reactions together); ties go to the newer post.
+export const POST_SORTS = ['newest', 'popular', 'oldest'] as const;
+export type PostSort = (typeof POST_SORTS)[number];
+
+export function parsePostSort(raw: string | string[] | undefined): PostSort {
+  const value = Array.isArray(raw) ? raw[0] : raw;
+  return POST_SORTS.find((sort) => sort === value) ?? 'newest';
+}
+
+/** The page numbers to show in the pager: the first, the last, and a few
+ *  around the current one, with null where numbers are skipped. */
+export function pageWindow(
+  page: number,
+  totalPages: number,
+  around = 1
+): (number | null)[] {
+  const wanted = new Set([1, totalPages]);
+  for (let p = page - around; p <= page + around; p++) {
+    if (p >= 1 && p <= totalPages) wanted.add(p);
+  }
+  const sorted = [...wanted].sort((a, b) => a - b);
+  const result: (number | null)[] = [];
+  sorted.forEach((p, index) => {
+    if (index > 0 && p - sorted[index - 1] > 1) result.push(null);
+    result.push(p);
+  });
+  return result;
+}
+
+export function countPages(totalPosts: number): number {
+  return Math.max(1, Math.ceil(totalPosts / POSTS_PER_PAGE));
+}
+
 export type RoomRulesStyle = 'number' | 'bullet' | 'none';
 
 // A line may start with "1." / "1)" or a bullet ("-", "•", "*").

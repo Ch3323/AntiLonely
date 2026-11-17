@@ -118,6 +118,13 @@ export function RoomSkeleton() {
       >
         <div className="flex w-full min-w-0 flex-1 flex-col gap-5">
           <ComposerSkeleton />
+          {/* The "เรียงตาม" toggles. */}
+          <div className="-mt-1 flex items-center justify-end gap-2">
+            <Line className="h-5 w-16" />
+            <Line className="h-[31px] w-20 rounded-full" />
+            <Line className="h-[31px] w-20 rounded-full" />
+            <Line className="h-[31px] w-20 rounded-full" />
+          </div>
           <PostSkeleton lines={3} />
           <PostSkeleton />
           <PostSkeleton />
@@ -207,30 +214,36 @@ export function NotificationsSkeleton() {
       <Loading label="กำลังโหลดการแจ้งเตือน…" />
       <div aria-hidden="true" className="space-y-6">
         <div className="flex items-center justify-between gap-4">
-          <Line className="h-8 w-40" />
-          <Line className="h-8 w-32 rounded-lg" />
+          <Line className="h-9 w-48" />
+          <Line className="h-[35px] w-36 rounded-lg" />
         </div>
         <div className="flex gap-2">
           {[16, 20, 20, 16].map((width, index) => (
             <div
               key={index}
               style={{ width: `${width * 4}px` }}
-              className={`h-8 rounded-full ${skeletonClass}`}
+              className={`h-[31px] rounded-full ${skeletonClass}`}
             />
           ))}
         </div>
-        <div className={`divide-y-[1.5px] divide-dashed divide-edge ${indexCardClass}`}>
-          {[0, 1, 2, 3, 4].map((index) => (
-            <div key={index} className="flex items-start gap-3 p-4 sm:p-5">
-              <div className="w-2.5 shrink-0" />
-              <div className={`size-10 shrink-0 rounded-full ${skeletonClass}`} />
-              <div className="flex flex-1 flex-col gap-2 pr-2">
-                <Line className="h-5 w-4/5" />
-                <Line className="h-4 w-3/5" />
+        {/* The list: a heading ("ใหม่") over the card of rows. */}
+        <div className="space-y-2 pt-1">
+          <Line className="ml-1 h-7 w-16" />
+          <div
+            className={`divide-y-[1.5px] divide-dashed divide-edge overflow-hidden ${indexCardClass}`}
+          >
+            {[0, 1, 2, 3, 4].map((index) => (
+              <div key={index} className="flex items-start gap-3 p-4 sm:p-5">
+                <div className="w-2.5 shrink-0" />
+                <div className={`size-10 shrink-0 rounded-full ${skeletonClass}`} />
+                <div className="flex min-w-0 flex-1 flex-col gap-2 pr-2">
+                  <Line className="h-5 w-4/5" />
+                  <Line className="h-4 w-3/5" />
+                </div>
+                <Line className="h-4 w-12" />
               </div>
-              <Line className="h-4 w-12" />
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       </div>
     </div>

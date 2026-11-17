@@ -12,6 +12,11 @@ import {
   mapDbPostToBoardPost,
   mapDbRoomToBoardRoom,
   MAX_POST_CONTENT_LENGTH,
+  countPages,
+  pageWindow,
+  parsePageNumber,
+  parsePostSort,
+  POSTS_PER_PAGE,
   parseRoomRules,
   parseRoomRulesStyle,
   serializeRoomRules,
@@ -335,6 +340,40 @@ describe('room-board domain & DB mapping', () => {
       canMemberReactInRoom({ isPrivate: false, memberStatus: 'banned' }).ok,
       false
     );
+  });
+});
+
+describe('board pages', () => {
+  it('reads the page number and falls back to 1', () => {
+    assert.equal(parsePageNumber('3'), 3);
+    assert.equal(parsePageNumber(['2', '5']), 2);
+    for (const bad of [undefined, '', '0', '-2', 'abc']) {
+      assert.equal(parsePageNumber(bad), 1);
+    }
+  });
+
+  it('counts pages, at least one', () => {
+    assert.equal(countPages(0), 1);
+    assert.equal(countPages(POSTS_PER_PAGE), 1);
+    assert.equal(countPages(POSTS_PER_PAGE + 1), 2);
+  });
+});
+
+describe('post sort and pager', () => {
+  it('reads the sort and falls back to newest', () => {
+    assert.equal(parsePostSort('oldest'), 'oldest');
+    assert.equal(parsePostSort(['popular']), 'popular');
+    assert.equal(parsePostSort('replies'), 'newest');
+    assert.equal(parsePostSort('nope'), 'newest');
+    assert.equal(parsePostSort(undefined), 'newest');
+  });
+
+  it('lists page numbers with gaps marked', () => {
+    assert.deepEqual(pageWindow(1, 3), [1, 2, 3]);
+    assert.deepEqual(pageWindow(1, 10), [1, 2, null, 10]);
+    assert.deepEqual(pageWindow(5, 10), [1, null, 4, 5, 6, null, 10]);
+    assert.deepEqual(pageWindow(10, 10), [1, null, 9, 10]);
+    assert.deepEqual(pageWindow(1, 1), [1]);
   });
 });
 

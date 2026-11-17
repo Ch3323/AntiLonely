@@ -30,13 +30,6 @@ function matchesFilter(room: Room, filter: FilterId) {
   return true;
 }
 
-// The grid is two columns wide. Cards come in two sizes so it isn't a wall of
-// equal boxes: the first of every five fills a whole row, the rest sit in
-// pairs. (From md the sidebar leaves room for one column, so all are equal.)
-function isWideCard(index: number) {
-  return index % 5 === 0;
-}
-
 // Cards only animate in a transition tagged "room-filter". Other transitions,
 // like the navigation that opens the login modal, leave them alone. Typing in
 // search isn't a transition at all, so the cards update instantly there.
@@ -150,27 +143,20 @@ export default function RoomList({
               room for two cards until lg. */}
           <ul
             ref={listRef}
-            className="grid grid-flow-dense grid-cols-1 gap-5 sm:grid-cols-2 md:grid-cols-1 lg:grid-cols-2"
+            className="grid grid-cols-1 gap-5 sm:grid-cols-2 md:grid-cols-1 lg:grid-cols-2"
           >
-            {visible.map((room, index) => {
-              const wide = isWideCard(index);
-              return (
+            {visible.map((room) => (
               <ViewTransition
                 key={room.id}
                 enter={onFilterChange("room-in")}
                 exit={onFilterChange("room-out")}
                 default={onFilterChange("room-move")}
               >
-                <li
-                  className={
-                    wide ? "sm:col-span-2 md:col-span-1 lg:col-span-2" : ""
-                  }
-                >
-                  <RoomCard room={room} wide={wide} />
+                <li>
+                  <RoomCard room={room} />
                 </li>
               </ViewTransition>
-              );
-            })}
+            ))}
           </ul>
           {/* Gone once every matching room is on screen. */}
           {hasMore && (
