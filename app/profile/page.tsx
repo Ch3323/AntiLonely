@@ -58,12 +58,11 @@ type ApiComment = {
   replyCount: number;
 };
 
-type Tab = "posts" | "comments" | "saved";
+type Tab = "posts" | "comments";
 
 const tabs: { key: Tab; label: string }[] = [
   { key: "posts", label: "กระทู้ของฉัน" },
   { key: "comments", label: "ความคิดเห็น" },
-  { key: "saved", label: "ที่บันทึกไว้" },
 ];
 
 function timeAgo(iso: string): string {
@@ -292,10 +291,6 @@ export default function ProfilePage() {
                 />
               ))}
             </>
-          )}
-
-          {activeTab === "saved" && (
-            <EmptyNote icon="bookmark" title="ยังไม่มีที่บันทึกไว้" />
           )}
         </div>
       </main>
