@@ -2,7 +2,7 @@
 
 import Icon from "@/component/Icon";
 import type { RoomRulesStyle } from "@/lib/room-board";
-import { inputClass, outlineButtonClass } from "@/lib/styles";
+import { fieldFrameClass, inputClass } from "@/lib/styles";
 
 export const MAX_RULE_ITEMS = 20;
 const MAX_RULE_LENGTH = 200;
@@ -41,29 +41,22 @@ export default function RulesEditor({
 
   return (
     <div className="flex flex-col gap-2">
-      <div
-        role="group"
-        aria-label="รูปแบบรายการกติกา"
-        className="flex flex-wrap gap-2"
-      >
-        {(
-          [
-            ["bullet", "• สัญลักษณ์จุด"],
-            ["number", "1. ตัวเลข"],
-          ] as const
-        ).map(([value, label]) => (
-          <button
-            key={value}
-            type="button"
-            aria-pressed={style === value}
-            onClick={() => onChange({ items, style: value })}
-            className={`h-8 cursor-pointer px-3 text-xs ${outlineButtonClass} ${
-              style === value ? "bg-butter" : ""
-            }`}
-          >
-            {label}
-          </button>
-        ))}
+      <div className="flex items-center gap-2">
+        <label htmlFor={`${idPrefix}-style`} className="text-sm text-ink-soft">
+          รูปแบบรายการ
+        </label>
+        <select
+          id={`${idPrefix}-style`}
+          value={style}
+          onChange={(event) =>
+            onChange({ items, style: event.target.value as RoomRulesStyle })
+          }
+          className={`px-3 py-1.5 ${fieldFrameClass} w-auto`}
+        >
+          <option value="number">1. ตัวเลข</option>
+          <option value="bullet">• สัญลักษณ์จุด</option>
+          <option value="none">ไม่มีตัวเลขหรือสัญลักษณ์</option>
+        </select>
       </div>
 
       <ul className="flex flex-col gap-2">
@@ -71,9 +64,9 @@ export default function RulesEditor({
           <li key={index} className="flex items-center gap-2">
             <span
               aria-hidden="true"
-              className="w-6 shrink-0 text-right font-semibold text-ink-soft"
+              className={`shrink-0 text-right font-semibold text-ink-soft ${style === "none" ? "hidden" : "w-6"}`}
             >
-              {style === "bullet" ? "•" : `${index + 1}.`}
+              {style === "bullet" ? "•" : style === "number" ? `${index + 1}.` : ""}
             </span>
             <input
               id={`${idPrefix}-${index}`}

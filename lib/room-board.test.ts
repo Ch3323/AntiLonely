@@ -347,13 +347,14 @@ describe('room rules lists', () => {
   it('tells the style from the first line', () => {
     assert.equal(parseRoomRulesStyle('- a\n- b'), 'bullet');
     assert.equal(parseRoomRulesStyle('1. a\n2. b'), 'number');
-    assert.equal(parseRoomRulesStyle('a\nb'), 'number');
+    assert.equal(parseRoomRulesStyle('a\nb'), 'none');
     assert.equal(parseRoomRulesStyle(null), 'number');
   });
 
   it('writes rules back as lines and skips empty ones', () => {
     assert.equal(serializeRoomRules(['a', ' ', 'b'], 'bullet'), '- a\n- b');
     assert.equal(serializeRoomRules(['a', ' ', 'b'], 'number'), '1. a\n2. b');
+    assert.equal(serializeRoomRules(['a', 'b'], 'none'), 'a\nb');
     assert.equal(serializeRoomRules([''], 'number'), '');
   });
 });

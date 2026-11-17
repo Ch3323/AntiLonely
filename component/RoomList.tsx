@@ -30,6 +30,14 @@ function matchesFilter(room: Room, filter: FilterId) {
   return true;
 }
 
+// Cards come in different sizes so the grid isn't a wall of equal boxes: in
+// every run of seven, the first and fourth are wide (two of three columns).
+// Rows come out as 2:1, 1:2, then three singles.
+function isWideCard(index: number) {
+  const place = index % 7;
+  return place === 0 || place === 3;
+}
+
 // Cards only animate in a transition tagged "room-filter". Other transitions,
 // like the navigation that opens the login modal, leave them alone. Typing in
 // search isn't a transition at all, so the cards update instantly there.
@@ -143,20 +151,27 @@ export default function RoomList({
               room for two cards until lg. */}
           <ul
             ref={listRef}
-            className="grid grid-cols-1 gap-5 sm:grid-cols-2 md:grid-cols-1 lg:grid-cols-2"
+            className="grid grid-flow-dense grid-cols-1 gap-5 sm:grid-cols-2 md:grid-cols-1 lg:grid-cols-2 xl:grid-cols-3"
           >
-            {visible.map((room) => (
+            {visible.map((room, index) => {
+              const wide = isWideCard(index);
+              return (
               <ViewTransition
                 key={room.id}
                 enter={onFilterChange("room-in")}
                 exit={onFilterChange("room-out")}
                 default={onFilterChange("room-move")}
               >
-                <li>
-                  <RoomCard room={room} />
+                <li
+                  className={
+                    wide ? "sm:col-span-2 md:col-span-1 lg:col-span-2" : ""
+                  }
+                >
+                  <RoomCard room={room} wide={wide} />
                 </li>
               </ViewTransition>
-            ))}
+              );
+            })}
           </ul>
           {/* Gone once every matching room is on screen. */}
           {hasMore && (

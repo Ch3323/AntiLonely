@@ -150,7 +150,8 @@ export function canMemberEditPostInRoom(input: {
   return { ok: true };
 }
 
-export type RoomRulesStyle = 'number' | 'bullet';
+// "none" is plain lines, with no number or dot in front.
+export type RoomRulesStyle = 'number' | 'bullet' | 'none';
 
 // A line may start with "1." / "1)" or a bullet ("-", "•", "*").
 const RULE_MARKER = /^(?:\d+[\.\)]|[-•*])\s*/;
@@ -169,15 +170,17 @@ export function parseRoomRules(rules: string | null | undefined): string[] {
   return parsed.length > 0 ? parsed : [...DEFAULT_ROOM_RULES];
 }
 
-/** Whether the rules were written as a bulleted list (the first line says). */
+/** How the rules were written (the first line says): bullets, numbers, or plain lines. */
 export function parseRoomRulesStyle(
   rules: string | null | undefined
 ): RoomRulesStyle {
-  const first = rules?.split(/\r?\n/).find((line) => line.trim());
-  return first && BULLET_LINE.test(first.trim()) ? 'bullet' : 'number';
+  const first = rules?.split(/\r?\n/).find((line) => line.trim())?.trim();
+  if (!first) return 'number';
+  if (BULLET_LINE.test(first)) return 'bullet';
+  return RULE_MARKER.test(first) ? 'number' : 'none';
 }
 
-/** The text stored for a list of rules: "- rule" lines or "1. rule" lines. */
+/** The text stored for a list of rules: "- rule", "1. rule" or plain lines. */
 export function serializeRoomRules(
   items: readonly string[],
   style: RoomRulesStyle
@@ -185,7 +188,13 @@ export function serializeRoomRules(
   return items
     .map((item) => item.trim())
     .filter(Boolean)
-    .map((item, index) => (style === 'bullet' ? `- ${item}` : `${index + 1}. ${item}`))
+    .map((item, index) =>
+      style === 'bullet'
+        ? `- ${item}`
+        : style === 'number'
+          ? `${index + 1}. ${item}`
+          : item
+    )
     .join('\n');
 }
 

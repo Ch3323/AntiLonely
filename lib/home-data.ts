@@ -10,7 +10,8 @@ import type { MyRoom, Room, RoomPreview } from "@/types/room";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-// How many recent posts a room card quotes, and how much of each.
+// How many rooms quote recent posts, how many posts, and how much of each.
+const FEATURED_ROOMS = 3;
 const PREVIEW_POSTS = 2;
 const PREVIEW_CHARS = 90;
 
@@ -64,22 +65,6 @@ export async function getHomeData(): Promise<HomeData> {
               messages: { where: visiblePost },
             },
           },
-          messages: {
-            where: visiblePost,
-            orderBy: { createdAt: "desc" },
-            take: PREVIEW_POSTS,
-            select: {
-              content: true,
-              author: {
-                select: {
-                  id: true,
-                  username: true,
-                  displayUsername: true,
-                  name: true,
-                },
-              },
-            },
-          },
         },
       }),
       prisma.message.groupBy({
@@ -129,18 +114,44 @@ export async function getHomeData(): Promise<HomeData> {
       isPrivate: Boolean(room.passwordHash),
       isNew: now - room.createdAt.getTime() <= NEW_ROOM_WINDOW_DAYS * DAY_MS,
       emoji: DEFAULT_ROOM_EMOJI,
-      preview:
-        room.passwordHash && !joinedIds.has(room.id)
-          ? undefined
-          : room.messages.map(
-              (message): RoomPreview => ({
-                author: resolveAuthorAlias(message.author),
-                content: previewText(message.content),
-              }),
-            ),
     }))
     // Stable sort, so rooms with the same number of members stay oldest first.
     .sort((a, b) => b.members - a.members);
+
+  // Only the most popular few rooms quote their latest posts: reading them
+  // for every room made Home slow. Private rooms the viewer hasn't joined
+  // are skipped, since their posts are for members.
+  const featured = rooms
+    .filter((room) => !room.isPrivate || joinedIds.has(room.id))
+    .slice(0, FEATURED_ROOMS);
+  const previews = await Promise.all(
+    featured.map((room) =>
+      prisma.message.findMany({
+        where: { ...visiblePost, roomId: room.id },
+        orderBy: { createdAt: "desc" },
+        take: PREVIEW_POSTS,
+        select: {
+          content: true,
+          author: {
+            select: {
+              id: true,
+              username: true,
+              displayUsername: true,
+              name: true,
+            },
+          },
+        },
+      }),
+    ),
+  );
+  featured.forEach((room, index) => {
+    room.preview = previews[index].map(
+      (message): RoomPreview => ({
+        author: resolveAuthorAlias(message.author),
+        content: previewText(message.content),
+      }),
+    );
+  });
 
   const roomsById = new Map(rooms.map((room) => [room.id, room]));
   const myRooms: MyRoom[] = memberships.flatMap(({ roomId }) => {

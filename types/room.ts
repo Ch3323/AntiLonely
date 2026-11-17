@@ -15,8 +15,7 @@ export type Room = {
   isPrivate: boolean;
   isNew: boolean;
   emoji?: string;
-  // The latest posts, newest first. Left out for private rooms the viewer
-  // hasn't joined.
+  // The latest posts, newest first. Only the most popular few rooms have it.
   preview?: RoomPreview[];
 };
 
