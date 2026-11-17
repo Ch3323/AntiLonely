@@ -10,18 +10,33 @@ import { usePageSignedIn } from "@/component/RoomMembership";
 import { primaryButtonClass } from "@/lib/styles";
 
 const REFRESH_MS = 15000;
+let lastKnownUnreadCount: number | null = null;
 
 // The header's "โนติ" bell. The number always comes from the database through
-// /api/notifications/unread-count, so every page shows the same figure. The
-// `count` prop is only a stand-in until the first answer arrives.
-export default function NotificationLink({ count }: { count: number }) {
+// /api/notifications/unread-count, so every page shows the same figure. When
+// the server already fetched `count` for the current page, avoid immediately
+// re-fetching on mount; poll and listen for local updates instead.
+export default function NotificationLink({ count }: { count?: number }) {
   const fromPage = usePageSignedIn();
   const { data: session, isPending } = authClient.useSession();
   const signedIn = fromPage ?? (isPending ? null : session !== null);
   const userId = session?.user?.id;
-  const [live, setLive] = useState<number | null>(null);
+  const hasServerCount = typeof count === "number";
+  const [fallbackCount] = useState<number | null>(() =>
+    hasServerCount ? count : lastKnownUnreadCount
+  );
+  const [live, setLive] = useState<{
+    value: number;
+    forCount: number | undefined;
+  } | null>(null);
 
   useEffect(() => {
+    if (signedIn === false) {
+      lastKnownUnreadCount = null;
+    } else if (hasServerCount) {
+      lastKnownUnreadCount = count;
+    }
+
     if (!userId) return;
     let cancelled = false;
 
@@ -30,14 +45,17 @@ export default function NotificationLink({ count }: { count: number }) {
         .then((res) => (res.ok ? res.json() : null))
         .then((data) => {
           if (!cancelled && data && typeof data.count === "number") {
-            setLive(data.count);
+            lastKnownUnreadCount = data.count;
+            setLive({ value: data.count, forCount: count });
           }
         })
         .catch(() => {
           // keep the last number
         });
 
-    void load();
+    if (!hasServerCount && lastKnownUnreadCount === null) {
+      void load();
+    }
 
     const onVisible = () => {
       if (document.visibilityState === "visible") void load();
@@ -54,13 +72,15 @@ export default function NotificationLink({ count }: { count: number }) {
       window.removeEventListener("notifications:changed", onChanged);
       clearInterval(timer);
     };
-  }, [userId]);
+  }, [signedIn, userId, hasServerCount, count]);
 
   if (signedIn === false) return null;
 
-  // Pages that don't know the real number pass a stand-in (profile still
-  // passes a mock), so show 0 until the database answers.
-  const shown = live ?? (fromPage == null ? 0 : count);
+  const activeLive =
+    live !== null && (!hasServerCount || live.forCount === count)
+      ? live.value
+      : null;
+  const shown = activeLive ?? count ?? fallbackCount ?? 0;
 
   return (
     <Link

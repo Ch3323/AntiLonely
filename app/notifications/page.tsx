@@ -45,7 +45,7 @@ export default function NotificationsPage() {
     <Suspense
       fallback={
         <div className="flex flex-1 flex-col">
-          <Header notifications={0} rooms={[]} alias="" />
+          <Header rooms={[]} alias="" />
           <NotificationsSkeleton />
         </div>
       }

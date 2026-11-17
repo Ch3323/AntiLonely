@@ -9,6 +9,7 @@ import {
   canManageRoom,
   canModerateRoom,
   getRoomRole,
+  resolveRoomRoleFromRecords,
 } from '@/lib/room-permissions';
 import {
   formatReportReason,
@@ -145,19 +146,22 @@ export async function getRoomBoardData(
 
   // A private room shows its posts to active members only; everyone else gets
   // its name, description, rules and member count, and a way to join.
-  const viewerMembership = viewer
-    ? await prisma.roomMember.findUnique({
+  const isPrivate = Boolean(roomRecord.passwordHash);
+  const membershipQuery = viewer
+    ? prisma.roomMember.findUnique({
         where: {
           userId_roomId: {
             userId: viewer.id,
             roomId: canonicalRoomId,
           },
         },
-        select: { status: true },
+        select: { status: true, role: true },
       })
-    : null;
+    : Promise.resolve(null);
+
+  const prefetchedMembership = isPrivate ? await membershipQuery : null;
   const canSeePosts =
-    !roomRecord.passwordHash || viewerMembership?.status === 'active';
+    !isPrivate || prefetchedMembership?.status === 'active';
 
   const skip = (page - 1) * POSTS_PER_PAGE;
   const popularIds =
@@ -170,6 +174,7 @@ export async function getRoomBoardData(
     totalPosts,
     myMemberships,
     unreadNotifications,
+    publicMembership,
   ] = await Promise.all([
     canSeePosts ? prisma.message.findMany({
       where: {
@@ -240,7 +245,10 @@ export async function getRoomBoardData(
           },
         })
       : Promise.resolve(0),
+    isPrivate ? Promise.resolve(prefetchedMembership) : membershipQuery,
   ]);
+
+  const viewerMembership = isPrivate ? prefetchedMembership : publicMembership;
 
   // Put the popular page back in the order the SQL chose.
   const messageRows = popularIds
@@ -306,7 +314,11 @@ export async function getRoomBoardData(
       }
     : null;
 
-  const role = viewer ? await getRoomRole(canonicalRoomId, viewer.id) : null;
+  const role = resolveRoomRoleFromRecords({
+    roomCreatorId: roomRecord.creatorId,
+    userId: viewer?.id,
+    membership: viewerMembership,
+  });
 
   return {
     room: mappedRoom,

@@ -89,7 +89,7 @@ export default function RoomBoardFeedPage(props: Props) {
     <Suspense
       fallback={
         <div className="flex flex-1 flex-col">
-          <Header notifications={0} />
+          <Header />
           <RoomSkeleton />
         </div>
       }

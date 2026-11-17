@@ -47,7 +47,7 @@ export default function Home() {
     <Suspense
       fallback={
         <div className="flex flex-1 flex-col">
-          <Header notifications={0} rooms={[]} alias="" />
+          <Header rooms={[]} alias="" />
           <HomeSkeleton />
         </div>
       }

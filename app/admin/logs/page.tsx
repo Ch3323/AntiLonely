@@ -1,10 +1,9 @@
 import { Suspense } from "react";
 import { connection } from "next/server";
-import { headers } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 import { AdminSkeleton } from "@/component/PageSkeletons";
 import AdminLogsClient from "@/component/admin/AdminLogsClient";
-import { auth } from "@/lib/auth";
+import { getViewerSession } from "@/lib/server-action-helpers";
 import { buildSummaryActivityFeed } from "@/lib/admin-logs";
 import { fetchAdminLogSources } from "@/lib/admin-logs-server";
 
@@ -21,9 +20,7 @@ export default function AdminLogsPage() {
 async function AdminLogsData() {
   await connection();
 
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  });
+  const session = await getViewerSession();
 
   if (!session) {
     redirect("/login");

@@ -18,7 +18,7 @@ export default function RulesPage() {
     <div className="flex flex-1 flex-col">
       {/* The header finds out who is signed in by itself: the bell reads the
           unread count and the create button asks for your rooms. */}
-      <Header notifications={0} />
+      <Header />
       <main className="flex flex-1 justify-center px-4 py-10">
         <Paper className="w-full max-w-2xl">
           <h1 className="font-display text-[1.75rem] leading-tight font-semibold">
