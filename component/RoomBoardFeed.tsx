@@ -876,7 +876,7 @@ export default function RoomBoardFeed({
   return (
     <div className="flex flex-1 flex-col">
       <Header
-        notifications={currentUser?.notifications ?? 0}
+        notifications={currentUser?.notifications}
         rooms={myRooms}
         alias={currentUser?.alias ?? "ผู้เยี่ยมชม"}
       />

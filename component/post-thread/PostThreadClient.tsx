@@ -843,7 +843,7 @@ export function PostThreadClient({
   return (
     <div className="min-h-screen flex flex-col font-sans">
       <Header
-        notifications={currentUser?.notifications ?? 0}
+        notifications={currentUser?.notifications}
         rooms={myRooms}
         alias={currentUser?.alias ?? 'ผู้เยี่ยมชม'}
       />

@@ -1,16 +1,21 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useSyncExternalStore } from "react";
 import { authClient } from "@/lib/auth-client";
 import Icon from "@/component/Icon";
 import LinkPending from "@/component/LinkPending";
 import NotificationBadge from "@/component/NotificationBadge";
 import { usePageSignedIn } from "@/component/RoomMembership";
+import {
+  getUnreadCountSnapshot,
+  setUnreadCountSnapshot,
+  subscribeUnreadCount,
+  syncServerUnreadCount,
+} from "@/lib/notification-count-store";
 import { primaryButtonClass } from "@/lib/styles";
 
 const REFRESH_MS = 15000;
-let lastKnownUnreadCount: number | null = null;
 
 // The header's "โนติ" bell. The number always comes from the database through
 // /api/notifications/unread-count, so every page shows the same figure. When
@@ -21,21 +26,23 @@ export default function NotificationLink({ count }: { count?: number }) {
   const { data: session, isPending } = authClient.useSession();
   const signedIn = fromPage ?? (isPending ? null : session !== null);
   const userId = session?.user?.id;
-  const hasServerCount = typeof count === "number";
-  const [fallbackCount] = useState<number | null>(() =>
-    hasServerCount ? count : lastKnownUnreadCount
+  const sharedCount = useSyncExternalStore(
+    subscribeUnreadCount,
+    getUnreadCountSnapshot,
+    () => count ?? null
   );
-  const [live, setLive] = useState<{
-    value: number;
-    forCount: number | undefined;
-  } | null>(null);
+  const shownBeforeRef = useRef(false);
+  const prevCountRef = useRef<number | undefined>(undefined);
 
   useEffect(() => {
-    if (signedIn === false) {
-      lastKnownUnreadCount = null;
-    } else if (hasServerCount) {
-      lastKnownUnreadCount = count;
-    }
+    const { shouldFetchInitial } = syncServerUnreadCount({
+      signedIn,
+      count,
+      shownBefore: shownBeforeRef.current,
+      prevCount: prevCountRef.current,
+    });
+    shownBeforeRef.current = true;
+    prevCountRef.current = count;
 
     if (!userId) return;
     let cancelled = false;
@@ -45,15 +52,14 @@ export default function NotificationLink({ count }: { count?: number }) {
         .then((res) => (res.ok ? res.json() : null))
         .then((data) => {
           if (!cancelled && data && typeof data.count === "number") {
-            lastKnownUnreadCount = data.count;
-            setLive({ value: data.count, forCount: count });
+            setUnreadCountSnapshot(data.count);
           }
         })
         .catch(() => {
           // keep the last number
         });
 
-    if (!hasServerCount && lastKnownUnreadCount === null) {
+    if (shouldFetchInitial) {
       void load();
     }
 
@@ -72,15 +78,11 @@ export default function NotificationLink({ count }: { count?: number }) {
       window.removeEventListener("notifications:changed", onChanged);
       clearInterval(timer);
     };
-  }, [signedIn, userId, hasServerCount, count]);
+  }, [signedIn, userId, count]);
 
   if (signedIn === false) return null;
 
-  const activeLive =
-    live !== null && (!hasServerCount || live.forCount === count)
-      ? live.value
-      : null;
-  const shown = activeLive ?? count ?? fallbackCount ?? 0;
+  const shown = sharedCount ?? count ?? 0;
 
   return (
     <Link
