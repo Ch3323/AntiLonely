@@ -95,7 +95,9 @@ export function EditRoomDialog({
   const [items, setItems] = useState<string[]>(
     rulesAreDefault ? [""] : rulesList,
   );
-  const [style, setStyle] = useState<RoomRulesStyle>(rulesStyle);
+  const [style, setStyle] = useState<RoomRulesStyle>(
+    rulesAreDefault ? "none" : rulesStyle,
+  );
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
