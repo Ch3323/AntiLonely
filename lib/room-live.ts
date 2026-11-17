@@ -90,26 +90,42 @@ const realTimers: Timers = {
  * Runs `fn` once `waitMs` has passed without another trigger, but never later
  * than `maxWaitMs` after the first trigger of a burst, so ten reactions in a
  * row cause one re-fetch and a steady stream still shows up regularly.
+ *
+ * With `leading`, the first trigger of a burst runs at once (so a lone change
+ * shows up without waiting), and further triggers during the quiet spell are
+ * folded into one more run at its end.
  */
 export function createDebounced(
   fn: () => void,
   waitMs: number,
   maxWaitMs: number,
-  timers: Timers = realTimers
+  timers: Timers = realTimers,
+  options: { leading?: boolean } = {}
 ): Debounced {
+  const leading = options.leading ?? false;
   let handle: unknown = null;
   let firstAt: number | null = null;
+  let pending = false;
 
   const run = () => {
     handle = null;
     firstAt = null;
-    fn();
+    if (pending) {
+      pending = false;
+      fn();
+    }
   };
 
   return {
     trigger() {
       const now = timers.now();
-      if (firstAt === null) firstAt = now;
+      if (firstAt === null) {
+        firstAt = now;
+        if (leading) fn();
+        else pending = true;
+      } else {
+        pending = true;
+      }
       if (handle !== null) timers.clearTimeout(handle);
       const delay = Math.max(0, Math.min(waitMs, firstAt + maxWaitMs - now));
       handle = timers.setTimeout(run, delay);
@@ -118,6 +134,7 @@ export function createDebounced(
       if (handle !== null) timers.clearTimeout(handle);
       handle = null;
       firstAt = null;
+      pending = false;
     },
   };
 }

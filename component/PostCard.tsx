@@ -26,6 +26,8 @@ type Props = {
   createdAt?: string;
   content: string;
   isOwner?: boolean;
+  // The room's owner or a moderator: may delete other people's posts.
+  canModerate?: boolean;
   isEdited?: boolean;
   reactions?: { emoji: string; count: number; reactedByMe?: boolean }[];
   replyCount: number;
@@ -78,6 +80,7 @@ const PostCard = memo(function PostCard({
   createdAt,
   content,
   isOwner = false,
+  canModerate = false,
   isEdited = false,
   reactions: initialReactions = noReactions,
   replyCount,
@@ -249,24 +252,14 @@ const PostCard = memo(function PostCard({
               className="absolute right-0 top-[calc(100%+4px)] z-20 flex w-44 flex-col rounded-xl border-[1.5px] border-ink bg-white p-1.5 shadow-sticker"
             >
               {threadHref && (
-                <>
-                  <Link
-                    href={threadHref}
-                    role="menuitem"
-                    onClick={() => setIsMenuOpen(false)}
-                    className="w-full rounded-md px-2.5 py-2 text-left text-xs sm:text-[13px] font-medium text-ink hover:bg-butter motion-safe:transition-colors"
-                  >
-                    เปิดดูกระทู้
-                  </Link>
-                  <button
-                    type="button"
-                    role="menuitem"
-                    onClick={handleCopyLink}
-                    className="w-full rounded-md px-2.5 py-2 text-left text-xs sm:text-[13px] font-medium text-ink hover:bg-butter motion-safe:transition-colors cursor-pointer"
-                  >
-                    คัดลอกลิงก์กระทู้
-                  </button>
-                </>
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={handleCopyLink}
+                  className="w-full rounded-md px-2.5 py-2 text-left text-xs sm:text-[13px] font-medium text-ink hover:bg-butter motion-safe:transition-colors cursor-pointer"
+                >
+                  คัดลอกลิงก์กระทู้
+                </button>
               )}
               {isOwner ? (
                 <>
@@ -288,17 +281,29 @@ const PostCard = memo(function PostCard({
                   </button>
                 </>
               ) : (
-                <button
-                  type="button"
-                  role="menuitem"
-                  onClick={() => {
-                    setIsMenuOpen(false);
-                    setIsReporting(true);
-                  }}
-                  className="w-full rounded-md px-2.5 py-2 text-left text-xs sm:text-[13px] font-medium text-red-700 hover:bg-red-50 motion-safe:transition-colors cursor-pointer"
-                >
-                  รายงานกระทู้
-                </button>
+                <>
+                  {canModerate && (
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={handleDelete}
+                      className="w-full rounded-md px-2.5 py-2 text-left text-xs sm:text-[13px] font-medium text-red-700 hover:bg-red-50 motion-safe:transition-colors cursor-pointer"
+                    >
+                      ลบกระทู้
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      setIsMenuOpen(false);
+                      setIsReporting(true);
+                    }}
+                    className="w-full rounded-md px-2.5 py-2 text-left text-xs sm:text-[13px] font-medium text-red-700 hover:bg-red-50 motion-safe:transition-colors cursor-pointer"
+                  >
+                    รายงานกระทู้
+                  </button>
+                </>
               )}
             </div>
           )}

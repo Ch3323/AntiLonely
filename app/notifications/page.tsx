@@ -6,6 +6,7 @@ import Header from '@/component/Header';
 import { NotificationsClient } from '@/component/notifications/NotificationsClient';
 import { NotificationsAutoRefresh } from '@/component/LiveRefresh';
 import { getNotificationItems } from "@/lib/notifications-data";
+import { getUserLiveTopic } from "@/lib/room-live-server";
 import { getViewerUser } from "@/lib/server-action-helpers";
 import { getMyRooms } from "@/lib/home-data";
 import { resolveAuthorAlias } from "@/lib/room-board";
@@ -28,7 +29,7 @@ async function NotificationsFeed() {
   return (
     <>
       {/* New notifications show up without a reload, like the bell's count. */}
-      <NotificationsAutoRefresh />
+      <NotificationsAutoRefresh topic={getUserLiveTopic(viewer.id)} />
       <NotificationsClient
         initialItems={feed.items}
         serverTime={feed.serverTime}

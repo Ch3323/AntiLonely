@@ -82,11 +82,22 @@ const HOME_REFRESH_MS = 25_000;
  * the tab is visible. Pauses while a modal route (log in, sign up) sits over
  * Home, so the modal is never re-rendered under someone typing in it.
  */
-export function HomeAutoRefresh() {
-  const router = useRouter();
+export function HomeAutoRefresh({ topic = null }: { topic?: string | null }) {
   const onHome = usePathname() === "/";
+  // With the live channel, Home re-reads when something moves (and polls only
+  // as a slow fallback); without it, it polls every 25 seconds.
+  if (topic) {
+    return onHome ? (
+      <RoomLiveRefresh live={{ topic, thread: null }} fallbackPoll />
+    ) : null;
+  }
+  return <HomePolling enabled={onHome} />;
+}
+
+function HomePolling({ enabled }: { enabled: boolean }) {
+  const router = useRouter();
   const refresh = () => router.refresh();
-  useVisibleInterval(HOME_REFRESH_MS, refresh, refresh, onHome);
+  useVisibleInterval(HOME_REFRESH_MS, refresh, refresh, enabled);
   return null;
 }
 
@@ -115,7 +126,20 @@ const NOTIFICATIONS_FULL_EVERY = 4;
  * and re-reads the list when that number moves, about once a minute anyway,
  * and whenever the tab comes back.
  */
-export function NotificationsAutoRefresh() {
+export function NotificationsAutoRefresh({
+  topic = null,
+}: {
+  topic?: string | null;
+}) {
+  // With the person's live channel, the list re-reads when it changes; the
+  // count probe below stays only as the fallback.
+  if (topic) {
+    return <RoomLiveRefresh live={{ topic, thread: null }} fallbackPoll />;
+  }
+  return <NotificationsPolling />;
+}
+
+function NotificationsPolling() {
   const router = useRouter();
   const lastCount = useRef<number | null>(null);
   const probesSinceRefresh = useRef(0);
@@ -158,8 +182,9 @@ export function NotificationsAutoRefresh() {
 
 // A burst of changes (ten reactions in a row) becomes one re-fetch: wait for
 // a short quiet spell, but never longer than the max after the first signal.
-const LIVE_DEBOUNCE_MS = 400;
-const LIVE_MAX_WAIT_MS = 1500;
+// The first signal re-fetches at once; the rest of a burst follows in one more.
+const LIVE_DEBOUNCE_MS = 250;
+const LIVE_MAX_WAIT_MS = 1000;
 // Without Realtime (keys missing, blocked, down), poll slowly instead.
 const FALLBACK_POLL_MS = 45_000;
 
@@ -189,7 +214,9 @@ export function RoomLiveRefresh({
     const debounced = createDebounced(
       () => router.refresh(),
       LIVE_DEBOUNCE_MS,
-      LIVE_MAX_WAIT_MS
+      LIVE_MAX_WAIT_MS,
+      undefined,
+      { leading: true }
     );
 
     const join = () => {

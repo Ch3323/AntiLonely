@@ -54,7 +54,7 @@ export function ReplyComposer({
       >
         <div
           aria-hidden="true"
-          className={`avatarClass.replace('size-9', 'size-7')} overflow-hidden `}
+          className={`${avatarClass.replace('size-9', 'size-7')} overflow-hidden`}
         >
           {myImage ? (
             // eslint-disable-next-line @next/next/no-img-element

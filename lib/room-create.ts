@@ -46,6 +46,31 @@ export function visibleLength(value: string): number {
     .length;
 }
 
+// The owner's edit form: the description and rules only, with the same limits
+// as when the room was created.
+export function validateRoomEdit(input: {
+  description?: unknown;
+  rules?: unknown;
+}):
+  | { ok: true; value: { description: string; rules: string | null } }
+  | { ok: false; error: string } {
+  const description = text(input.description).trim();
+  const rules = text(input.rules).trim();
+  if (visibleLength(description) > ROOM_DESCRIPTION_MAX) {
+    return {
+      ok: false,
+      error: `คำอธิบายห้องยาวได้ไม่เกิน ${ROOM_DESCRIPTION_MAX} ตัวอักษร`,
+    };
+  }
+  if (visibleLength(rules) > ROOM_RULES_MAX) {
+    return {
+      ok: false,
+      error: `กติกาของห้องยาวได้ไม่เกิน ${ROOM_RULES_MAX} ตัวอักษร`,
+    };
+  }
+  return { ok: true, value: { description, rules: rules || null } };
+}
+
 export function validateRoomCreate(input: RoomCreateInput): RoomCreateCheck {
   // Runs of spaces in a name collapse to one, so "a   b" and "a b" read alike.
   const name = text(input.name).trim().replace(/\s+/g, ' ');

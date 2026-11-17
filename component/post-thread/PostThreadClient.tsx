@@ -67,6 +67,7 @@ interface PostThreadClientProps {
   memberStatus: DbMemberStatus | null;
   canComment: boolean;
   canReact: boolean;
+  canModerate?: boolean;
   initialThread: PostThread;
   currentUser: {
     id: string;
@@ -161,6 +162,7 @@ export function PostThreadClient({
   memberStatus,
   canComment,
   canReact,
+  canModerate = false,
   initialThread,
   currentUser,
   myRooms,
@@ -996,6 +998,7 @@ export function PostThreadClient({
                 referenceTime={referenceTime}
                 currentUserId={currentUser?.id ?? ''}
                 currentUserName={currentUser?.alias ?? 'ผู้เยี่ยมชม'}
+                canModerate={canModerate}
                 isExpanded={expandedCommentIds.includes(comment.id)}
                 isReplying={replyingTo?.commentId === comment.id}
                 activeReplyTargetName={

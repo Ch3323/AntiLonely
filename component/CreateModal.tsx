@@ -6,16 +6,20 @@ import { createRoom } from "@/app/room-actions";
 import Icon, { type IconName } from "@/component/Icon";
 import Modal from "@/component/Modal";
 import PasswordInput from "@/component/PasswordInput";
+import RulesEditor from "@/component/RulesEditor";
 import Sheet from "@/component/Sheet";
 import Spinner from "@/component/Spinner";
 import { usePostToRoom } from "@/component/usePostToRoom";
-import { MAX_POST_CONTENT_LENGTH } from "@/lib/room-board";
+import {
+  MAX_POST_CONTENT_LENGTH,
+  serializeRoomRules,
+  type RoomRulesStyle,
+} from "@/lib/room-board";
 import {
   ROOM_DESCRIPTION_MAX,
   ROOM_NAME_MAX,
   ROOM_NAME_MIN,
   ROOM_PASSWORD_MIN,
-  ROOM_RULES_MAX,
   validateRoomCreate,
   visibleLength,
   type RoomVisibility,
@@ -221,7 +225,10 @@ function RoomForm({ onClose }: { onClose: () => void }) {
   const router = useRouter();
   const [name, setName] = useState("");
   const [about, setAbout] = useState("");
-  const [rules, setRules] = useState("");
+  // The rules are typed as a list; the server gets them as lines.
+  const [ruleItems, setRuleItems] = useState<string[]>([""]);
+  const [ruleStyle, setRuleStyle] = useState<RoomRulesStyle>("number");
+  const rules = serializeRoomRules(ruleItems, ruleStyle);
   const [visibility, setVisibility] = useState<RoomVisibility>("public");
   const [password, setPassword] = useState("");
   const [passwordConfirm, setPasswordConfirm] = useState("");
@@ -333,22 +340,20 @@ function RoomForm({ onClose }: { onClose: () => void }) {
       </div>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor="room-rules" className={labelClass}>
+        <span id="room-rules-label" className={labelClass}>
           กติกาของห้อง
-        </label>
-        <textarea
-          id="room-rules"
-          name="rules"
-          rows={3}
-          maxLength={ROOM_RULES_MAX}
-          placeholder={"1. ใจดีต่อกัน\n2. ไม่เปิดเผยข้อมูลส่วนตัว"}
-          aria-describedby="room-rules-hint"
-          value={rules}
-          onChange={(event) => edit(setRules)(event.target.value)}
-          className={`resize-y ${inputClass}`}
+        </span>
+        <RulesEditor
+          items={ruleItems}
+          style={ruleStyle}
+          onChange={({ items, style }) => {
+            setRuleItems(items);
+            setRuleStyle(style);
+            if (error) setError(null);
+          }}
         />
         <p id="room-rules-hint" className={hintClass}>
-          บรรทัดละข้อ เว้นว่างไว้จะใช้กติกาพื้นฐานของชุมชน
+          เขียนทีละข้อ เว้นว่างไว้จะใช้กติกาพื้นฐานของชุมชน
         </p>
       </div>
 

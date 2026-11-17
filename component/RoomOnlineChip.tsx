@@ -41,14 +41,17 @@ export default function RoomOnlineChip({ presence }: Props) {
     };
   }, [topic, key]);
 
-  if (count === null || count < 1) return null;
+  // Someone signed in who is looking at the room is online themselves, even
+  // in the moment before their own presence has come back in the count.
+  const online = count === null ? null : presence?.key ? Math.max(count, 1) : count;
+  if (online === null || online < 1) return null;
 
   return (
     <span
       className="rounded-full border border-online-edge bg-online px-2 py-0.5 text-xs font-medium text-online-ink"
       aria-live="polite"
     >
-      ออนไลน์ {formatCount(count)} คน
+      ออนไลน์ {formatCount(online)} คน
     </span>
   );
 }

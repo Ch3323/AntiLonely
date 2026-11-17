@@ -125,7 +125,25 @@ export interface DbNotificationRow {
   isRead: boolean;
   createdAt: Date;
   sanction?: { type?: string; reason: string } | null;
+  context?: DbNotificationContext | null;
 }
+
+/** Who caused a notification and where it points; all parts are optional. */
+export interface DbNotificationContext {
+  actorName: string | null;
+  actorImage: string | null;
+  roomName: string | null;
+  roomSlug: string | null;
+  postId: string | null;
+  preview: string | null;
+}
+
+// What each kind says when someone is named: "<name> <text>".
+const ACTOR_NOTIFICATION_TEXT: Record<string, string> = {
+  reply: 'ตอบกลับคุณ',
+  mention: 'กล่าวถึงคุณ',
+  reaction: 'แสดงรีแอคชันกับกระทู้ของคุณ',
+};
 
 const DEFAULT_NOTIFICATION_TEXT: Record<
   string,
@@ -166,6 +184,31 @@ export function mapDbNotificationsToItems(
       actionText: 'มีการแจ้งเตือนใหม่',
       category: 'report' as const,
     };
+
+    // A reply (or similar) that knows who did it and where: name them, say
+    // which room, quote it and link to the thread.
+    const ctx = n.context;
+    const actorText = ACTOR_NOTIFICATION_TEXT[String(n.type)];
+    if (ctx && actorText && (ctx.actorName || ctx.roomSlug)) {
+      const where = ctx.roomName ? ` ในห้อง ${ctx.roomName}` : '';
+      return {
+        id: n.id,
+        type: t.category,
+        actor: {
+          name: ctx.actorName ?? 'มีคน',
+          ...(ctx.actorImage ? { avatarUrl: ctx.actorImage } : {}),
+        },
+        actionText: `${actorText}${where}`,
+        ...(ctx.preview ? { contentPreview: ctx.preview } : {}),
+        createdAt: n.createdAt.toISOString(),
+        isRead: n.isRead,
+        targetUrl: ctx.roomSlug
+          ? ctx.postId
+            ? `/rooms/${ctx.roomSlug}/posts/${ctx.postId}`
+            : `/rooms/${ctx.roomSlug}`
+          : '/notifications',
+      };
+    }
 
     return {
       id: n.id,

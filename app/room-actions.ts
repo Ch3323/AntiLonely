@@ -3,6 +3,7 @@
 import { refresh, revalidatePath } from "next/cache";
 import { hashPassword, verifyPassword } from "better-auth/crypto";
 import { prisma } from "@/lib/prisma";
+import { signalLobbyChange, signalRoomChange } from "@/lib/room-live-notify";
 import { mapDbMembershipToBoardState, isUuid } from "@/lib/room-board";
 import { validateRoomCreate, type RoomCreateInput } from "@/lib/room-create";
 import {
@@ -92,6 +93,7 @@ export async function createRoom(
         throw error;
       }
       revalidatePath("/");
+      signalLobbyChange();
       return { ok: true, data: { slug } };
     }
     return { ok: false, error: "สร้างห้องไม่สำเร็จ ลองใหม่อีกครั้งนะ" };
@@ -191,6 +193,7 @@ export async function joinPrivateRoom(input: {
 
     revalidatePath(`/rooms/${room.slug}`);
     revalidatePath("/");
+    signalRoomChange({ roomId: room.id, board: true, lobby: true });
     refresh();
 
     return {

@@ -163,6 +163,27 @@ test("debounce still runs within the max wait during a steady stream", () => {
   assert.ok(runs >= 2 && runs <= 3, `ran ${runs} times`);
 });
 
+test("leading debounce runs at once, then folds the rest of the burst", () => {
+  const clock = fakeTimers();
+  let runs = 0;
+  const d = createDebounced(() => runs++, 250, 1000, clock.timers, {
+    leading: true,
+  });
+  d.trigger();
+  assert.equal(runs, 1);
+  for (let i = 0; i < 5; i++) {
+    clock.advance(20);
+    d.trigger();
+  }
+  assert.equal(runs, 1);
+  clock.advance(300);
+  assert.equal(runs, 2);
+  clock.advance(5000);
+  assert.equal(runs, 2);
+  d.trigger();
+  assert.equal(runs, 3);
+});
+
 test("cancel drops a pending run", () => {
   const clock = fakeTimers();
   let runs = 0;

@@ -48,6 +48,7 @@ export default function RoomCard({ room }: { room: Room }) {
           </p>
         </div>
       </div>
+      <RoomPreview room={room} />
       <div className="mt-auto flex items-center justify-between gap-2 border-t-[1.5px] border-dashed border-edge pt-3">
         <RoomStats room={room} />
         <div className="relative z-10 shrink-0">
@@ -55,6 +56,36 @@ export default function RoomCard({ room }: { room: Room }) {
         </div>
       </div>
     </article>
+  );
+}
+
+// The room's latest posts, quoted on a little note so you can see what people
+// are talking about before you open it.
+function RoomPreview({ room }: { room: Room }) {
+  if (!room.preview) {
+    return (
+      <p className="flex items-center gap-1.5 rounded-lg bg-mist/60 px-3 py-2 text-xs text-mist-ink">
+        <Icon name="lock" className="size-3.5 shrink-0" />
+        เข้าร่วมห้องเพื่ออ่านกระทู้
+      </p>
+    );
+  }
+  if (room.preview.length === 0) {
+    return (
+      <p className="rounded-lg bg-cream px-3 py-2 text-xs text-ink-soft">
+        ยังไม่มีกระทู้ มาเปิดประเด็นแรกกัน
+      </p>
+    );
+  }
+  return (
+    <ul className="flex flex-col gap-1.5 rounded-lg bg-cream px-3 py-2">
+      {room.preview.map((post, index) => (
+        <li key={index} className="line-clamp-1 text-xs text-ink-soft">
+          <span className="font-semibold text-ink">{post.author}</span>{" "}
+          {post.content}
+        </li>
+      ))}
+    </ul>
   );
 }
 

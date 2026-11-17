@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { prisma } from '@/lib/prisma';
+import { signalUserChange } from '@/lib/room-live-notify';
 import { isUuid } from '@/lib/room-board';
 import {
   getViewerUser,
@@ -34,6 +35,8 @@ export async function markNotificationsRead(input: {
 
     // ให้หน้าอื่นที่ cache ไว้ดึงเลขใหม่
     revalidatePath('/', 'layout');
+    // Their other open tabs drop the unread count too.
+    if (result.count > 0) signalUserChange(viewer.id);
 
     return { ok: true, data: { updated: result.count } };
   }, 'ไม่สามารถอัปเดตการแจ้งเตือนได้ กรุณาลองใหม่อีกครั้ง');
