@@ -30,12 +30,11 @@ function matchesFilter(room: Room, filter: FilterId) {
   return true;
 }
 
-// Cards come in different sizes so the grid isn't a wall of equal boxes: in
-// every run of seven, the first and fourth are wide (two of three columns).
-// Rows come out as 2:1, 1:2, then three singles.
+// The grid is two columns wide. Cards come in two sizes so it isn't a wall of
+// equal boxes: the first of every five fills a whole row, the rest sit in
+// pairs. (From md the sidebar leaves room for one column, so all are equal.)
 function isWideCard(index: number) {
-  const place = index % 7;
-  return place === 0 || place === 3;
+  return index % 5 === 0;
 }
 
 // Cards only animate in a transition tagged "room-filter". Other transitions,
@@ -151,7 +150,7 @@ export default function RoomList({
               room for two cards until lg. */}
           <ul
             ref={listRef}
-            className="grid grid-flow-dense grid-cols-1 gap-5 sm:grid-cols-2 md:grid-cols-1 lg:grid-cols-2 xl:grid-cols-3"
+            className="grid grid-flow-dense grid-cols-1 gap-5 sm:grid-cols-2 md:grid-cols-1 lg:grid-cols-2"
           >
             {visible.map((room, index) => {
               const wide = isWideCard(index);

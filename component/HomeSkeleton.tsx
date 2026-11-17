@@ -43,17 +43,17 @@ export default function HomeSkeleton() {
               ))}
             </div>
           </div>
-          <div className="grid grid-flow-dense grid-cols-1 gap-5 sm:grid-cols-2 md:grid-cols-1 lg:grid-cols-2 xl:grid-cols-3">
-            {Array.from({ length: 7 }, (_, index) => (
+          <div className="grid grid-flow-dense grid-cols-1 gap-5 sm:grid-cols-2 md:grid-cols-1 lg:grid-cols-2">
+            {Array.from({ length: 5 }, (_, index) => (
               <div
                 key={index}
                 className={
-                  index === 0 || index === 3
+                  index === 0
                     ? "sm:col-span-2 md:col-span-1 lg:col-span-2"
                     : ""
                 }
               >
-                <RoomCardSkeleton preview={index < 3} />
+                <RoomCardSkeleton preview={index === 0} />
               </div>
             ))}
           </div>
