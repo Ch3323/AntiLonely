@@ -23,6 +23,7 @@ import {
 import { NotificationTabs } from './NotificationTabs';
 import { NotificationSection } from './NotificationSection';
 import { EmptyState } from './EmptyState';
+import Link from 'next/link';
 
 interface NotificationsClientProps {
   initialItems: NotificationItem[];
@@ -161,6 +162,13 @@ export function NotificationsClient({
         alias={alias}
       />
       <main className="w-full max-w-[720px] mx-auto px-4 sm:px-6 py-8 sm:py-10 space-y-6 flex-1">
+          <Link
+            href="/"
+            className="inline-flex items-center gap-1.5 text-sm font-medium text-ink-soft hover:text-kmutt-orange-dark hover:underline"
+          >
+            <span aria-hidden="true">←</span>
+            <span>กลับไปหน้าหลัก</span>
+          </Link>
         {/* Header with Title and Mark all as read button */}
         <header className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">

@@ -10,6 +10,7 @@ import PostCard from "@/component/PostCard";
 import Tape from "@/component/Tape";
 import { currentUser, myRooms } from "@/lib/mock";
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import {
   highlightClass,
   indexCardClass,
@@ -150,6 +151,14 @@ export default function ProfilePage() {
       />
 
       <main className="mx-auto flex w-full max-w-4xl flex-col gap-6 px-4 py-6 sm:py-8">
+        <Link
+          href="/"
+          className="inline-flex items-center gap-1.5 text-sm font-medium text-ink-soft hover:text-kmutt-orange-dark hover:underline"
+        >
+          <span aria-hidden="true">←</span>
+          <span>กลับไปหน้าหลัก</span>
+        </Link>
+
         {/* โน้ตสีพีชบอกว่าหน้านี้ส่วนตัว */}
         <div className="flex items-start gap-2 rounded-lg border-[1.5px] border-dashed border-peach-edge bg-peach px-4 py-3 text-sm text-ink">
           <Icon name="lock" className="mt-0.5 size-4 text-kmutt-orange-dark" />
