@@ -227,7 +227,7 @@ function RoomForm({ onClose }: { onClose: () => void }) {
   const [about, setAbout] = useState("");
   // The rules are typed as a list; the server gets them as lines.
   const [ruleItems, setRuleItems] = useState<string[]>([""]);
-  const [ruleStyle, setRuleStyle] = useState<RoomRulesStyle>("number");
+  const [ruleStyle, setRuleStyle] = useState<RoomRulesStyle>("none");
   const rules = serializeRoomRules(ruleItems, ruleStyle);
   const [visibility, setVisibility] = useState<RoomVisibility>("public");
   const [password, setPassword] = useState("");

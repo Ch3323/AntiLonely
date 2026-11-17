@@ -7,6 +7,7 @@ import Icon from "@/component/Icon";
 import LinkPending from "@/component/LinkPending";
 import NotificationBadge from "@/component/NotificationBadge";
 import { usePageSignedIn } from "@/component/RoomMembership";
+import { primaryButtonClass } from "@/lib/styles";
 
 const REFRESH_MS = 15000;
 
@@ -64,7 +65,7 @@ export default function NotificationLink({ count }: { count: number }) {
   return (
     <Link
       href="/notifications"
-      className="relative flex h-9 items-center gap-1.5 rounded-lg border-[1.5px] border-ink bg-butter px-2.5 text-sm font-semibold hover:bg-highlight"
+      className={`relative flex h-9 items-center gap-1 px-2.5 sm:px-3 ${primaryButtonClass} bg-butter! hover:bg-highlight!`}
     >
       <Icon name="bell" className="size-4" />
       <span className="sr-only sm:not-sr-only">โนติ</span>
