@@ -150,6 +150,12 @@ export function canMemberEditPostInRoom(input: {
   return { ok: true };
 }
 
+export type RoomRulesStyle = 'number' | 'bullet';
+
+// A line may start with "1." / "1)" or a bullet ("-", "•", "*").
+const RULE_MARKER = /^(?:\d+[\.\)]|[-•*])\s*/;
+const BULLET_LINE = /^[-•*]\s/;
+
 export function parseRoomRules(rules: string | null | undefined): string[] {
   if (!rules || !rules.trim()) {
     return [...DEFAULT_ROOM_RULES];
@@ -157,10 +163,30 @@ export function parseRoomRules(rules: string | null | undefined): string[] {
 
   const parsed = rules
     .split(/\r?\n/)
-    .map((line) => line.trim().replace(/^\d+[\.\)]\s*/, '').trim())
+    .map((line) => line.trim().replace(RULE_MARKER, '').trim())
     .filter(Boolean);
 
   return parsed.length > 0 ? parsed : [...DEFAULT_ROOM_RULES];
+}
+
+/** Whether the rules were written as a bulleted list (the first line says). */
+export function parseRoomRulesStyle(
+  rules: string | null | undefined
+): RoomRulesStyle {
+  const first = rules?.split(/\r?\n/).find((line) => line.trim());
+  return first && BULLET_LINE.test(first.trim()) ? 'bullet' : 'number';
+}
+
+/** The text stored for a list of rules: "- rule" lines or "1. rule" lines. */
+export function serializeRoomRules(
+  items: readonly string[],
+  style: RoomRulesStyle
+): string {
+  return items
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .map((item, index) => (style === 'bullet' ? `- ${item}` : `${index + 1}. ${item}`))
+    .join('\n');
 }
 
 export interface DbAuthorSnapshot {
@@ -277,7 +303,13 @@ export function resolveRoomPostCountStats(room: {
 export function mapDbRoomToBoardRoom(
   room: DbRoomRow,
   nowMs: number = Date.now()
-): Room & { slug: string; totalPosts: number; rulesList: string[]; isLocked: boolean } {
+): Room & {
+  slug: string;
+  totalPosts: number;
+  rulesList: string[];
+  rulesStyle: RoomRulesStyle;
+  isLocked: boolean;
+} {
   const ageMs = Math.max(0, nowMs - room.createdAt.getTime());
   const isNew = ageMs <= NEW_ROOM_WINDOW_DAYS * DAY_MS;
 
@@ -293,6 +325,7 @@ export function mapDbRoomToBoardRoom(
     isNew,
     emoji: DEFAULT_ROOM_EMOJI,
     rulesList: parseRoomRules(room.rules),
+    rulesStyle: parseRoomRulesStyle(room.rules),
     isLocked: room.isLocked,
   };
 }

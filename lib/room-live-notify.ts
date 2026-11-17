@@ -5,7 +5,9 @@ import { after } from "next/server";
 import { prisma } from "./prisma";
 import {
   planMessageSignals,
+  sendLobbySignal,
   sendRoomLiveSignal,
+  sendUserSignal,
   type MessageLink,
 } from "./room-live-server";
 
@@ -18,6 +20,8 @@ type ChangeInput = {
   board: boolean;
   /** Every page of the room should re-read (room renamed or archived). */
   wholeRoom?: boolean;
+  /** Home shows something that changed (a new post, members, the room itself). */
+  lobby?: boolean;
 };
 
 function schedule(task: () => Promise<unknown>): void {
@@ -33,7 +37,22 @@ function schedule(task: () => Promise<unknown>): void {
 }
 
 export function signalRoomChange(input: ChangeInput): void {
-  schedule(() => sendRoomLiveSignal(input));
+  schedule(() =>
+    Promise.all([
+      sendRoomLiveSignal(input),
+      input.lobby || input.wholeRoom ? sendLobbySignal() : null,
+    ])
+  );
+}
+
+/** Someone's notifications changed (a new one, or read): refresh their page. */
+export function signalUserChange(userId: string): void {
+  schedule(() => sendUserSignal(userId));
+}
+
+/** A room was created: Home lists it. */
+export function signalLobbyChange(): void {
+  schedule(() => sendLobbySignal());
 }
 
 const MAX_ANCESTOR_ROUNDS = 8;

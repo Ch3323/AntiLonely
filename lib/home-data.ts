@@ -6,9 +6,20 @@ import {
   resolveAuthorAlias,
 } from "@/lib/room-board";
 import { getViewerUser } from "@/lib/server-action-helpers";
-import type { MyRoom, Room } from "@/types/room";
+import type { MyRoom, Room, RoomPreview } from "@/types/room";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
+
+// How many recent posts a room card quotes, and how much of each.
+const PREVIEW_POSTS = 2;
+const PREVIEW_CHARS = 90;
+
+function previewText(content: string): string {
+  const flat = content.replace(/\s+/g, " ").trim();
+  return flat.length > PREVIEW_CHARS
+    ? `${flat.slice(0, PREVIEW_CHARS).trimEnd()}…`
+    : flat;
+}
 
 export type HomeViewer = {
   // The nickname shown in the welcome note.
@@ -53,6 +64,22 @@ export async function getHomeData(): Promise<HomeData> {
               messages: { where: visiblePost },
             },
           },
+          messages: {
+            where: visiblePost,
+            orderBy: { createdAt: "desc" },
+            take: PREVIEW_POSTS,
+            select: {
+              content: true,
+              author: {
+                select: {
+                  id: true,
+                  username: true,
+                  displayUsername: true,
+                  name: true,
+                },
+              },
+            },
+          },
         },
       }),
       prisma.message.groupBy({
@@ -86,6 +113,9 @@ export async function getHomeData(): Promise<HomeData> {
     postsTodayRows.map((row) => [row.roomId, row._count._all]),
   );
 
+  // A private room's posts are for its members, so only they get a preview.
+  const joinedIds = new Set(memberships.map((m) => m.roomId));
+
   // The password hash stays here: the page only learns whether there is one.
   const rooms: Room[] = roomRows
     .map((room) => ({
@@ -99,6 +129,15 @@ export async function getHomeData(): Promise<HomeData> {
       isPrivate: Boolean(room.passwordHash),
       isNew: now - room.createdAt.getTime() <= NEW_ROOM_WINDOW_DAYS * DAY_MS,
       emoji: DEFAULT_ROOM_EMOJI,
+      preview:
+        room.passwordHash && !joinedIds.has(room.id)
+          ? undefined
+          : room.messages.map(
+              (message): RoomPreview => ({
+                author: resolveAuthorAlias(message.author),
+                content: previewText(message.content),
+              }),
+            ),
     }))
     // Stable sort, so rooms with the same number of members stay oldest first.
     .sort((a, b) => b.members - a.members);

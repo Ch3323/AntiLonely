@@ -5,6 +5,11 @@ import { prisma } from '@/lib/prisma';
 import { toggleMessageReaction } from '@/lib/reaction-service';
 import { signalRoomChange } from '@/lib/room-live-notify';
 import {
+  canManageRoom,
+  canModerateRoom,
+  getRoomRole,
+} from '@/lib/room-permissions';
+import {
   formatReportReason,
   getViewerUser,
   runSafeMutation,
@@ -49,6 +54,10 @@ export interface RoomBoardData {
   };
   membership: RoomBoardMembershipState;
   initialPosts: BoardPostSummary[];
+  // Owner or moderator: may remove other people's posts.
+  canModerate: boolean;
+  // Owner: may edit the room, remove members and delete the room.
+  canManage: boolean;
   currentUser: RoomBoardViewer | null;
   myRooms: MyRoom[];
   serverTime: string;
@@ -236,10 +245,14 @@ export async function getRoomBoardData(
       }
     : null;
 
+  const role = viewer ? await getRoomRole(canonicalRoomId, viewer.id) : null;
+
   return {
     room: mappedRoom,
     membership,
     initialPosts,
+    canModerate: canModerateRoom(role),
+    canManage: canManageRoom(role),
     currentUser,
     myRooms,
     serverTime: now.toISOString(),
@@ -315,7 +328,12 @@ export async function createRoomPost(input: {
     });
 
     revalidateRoomPaths(room.id, room.slug);
-    signalRoomChange({ roomId: room.id, postId: created.id, board: true });
+    signalRoomChange({
+      roomId: room.id,
+      postId: created.id,
+      board: true,
+      lobby: true,
+    });
 
     return {
       ok: true,
@@ -487,7 +505,11 @@ export async function deleteRoomPost(input: {
       return { ok: false, error: 'ไม่พบกระทู้ที่ต้องการลบ' };
     }
 
-    if (existing.authorId !== viewer.id) {
+    // The author, or the room's owner or a moderator, can remove a post.
+    if (
+      existing.authorId !== viewer.id &&
+      !canModerateRoom(await getRoomRole(input.roomId, viewer.id))
+    ) {
       return { ok: false, error: 'คุณไม่มีสิทธิ์ลบกระทู้นี้' };
     }
 
@@ -639,7 +661,7 @@ export async function updateRoomMembership(input: {
 
     revalidateRoomPaths(room.id, room.slug);
     // The member count on the board; no thread involved.
-    signalRoomChange({ roomId: room.id, board: true });
+    signalRoomChange({ roomId: room.id, board: true, lobby: true });
 
     const nextStatus = input.action === 'join' ? 'active' : 'left';
     return {

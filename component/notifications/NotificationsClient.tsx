@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useMemo, useRef, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import type {
   NotificationCategory,
   NotificationItem,
@@ -37,6 +38,7 @@ export function NotificationsClient({
   rooms,
   alias,
 }: NotificationsClientProps) {
+  const router = useRouter();
   const [optimisticRead, setOptimisticRead] = useState<Set<string>>(
   () => new Set()
   );
@@ -143,6 +145,10 @@ export function NotificationsClient({
     const target = notifications.find((n) => n.id === id);
     if (target && !target.isRead) {
       applyRead([id], { ids: [id] });
+    }
+    // Opens the thread (or room) the notification is about.
+    if (target && target.targetUrl !== '/notifications') {
+      router.push(target.targetUrl);
     }
   };
 

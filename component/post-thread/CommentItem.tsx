@@ -19,6 +19,8 @@ interface CommentItemProps {
   referenceTime: number;
   currentUserId: string;
   currentUserName: string;
+  // The room's owner or a moderator: may delete anyone's comment.
+  canModerate?: boolean;
   isExpanded: boolean;
   isReplying: boolean;
   activeReplyTargetName?: string;
@@ -75,6 +77,7 @@ export const CommentItem = memo(function CommentItem({
   referenceTime,
   currentUserId,
   currentUserName,
+  canModerate = false,
   isExpanded,
   isReplying,
   activeReplyTargetName,
@@ -210,17 +213,32 @@ export const CommentItem = memo(function CommentItem({
                 </button>
               </>
             ) : (
-              <button
-                type="button"
-                role="menuitem"
-                onClick={() => {
-                  setOpenMenuId(null);
-                  onReportComment(itemId);
-                }}
-                className="w-full text-left px-2.5 py-2 rounded-md text-xs sm:text-sm text-red-700 hover:bg-red-50 cursor-pointer"
-              >
-                รายงานความคิดเห็น
-              </button>
+              <>
+                {canModerate && (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      setOpenMenuId(null);
+                      onDeleteComment(itemId);
+                    }}
+                    className="w-full text-left px-2.5 py-2 rounded-md text-xs sm:text-sm text-red-700 hover:bg-red-50 cursor-pointer"
+                  >
+                    ลบความคิดเห็น
+                  </button>
+                )}
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setOpenMenuId(null);
+                    onReportComment(itemId);
+                  }}
+                  className="w-full text-left px-2.5 py-2 rounded-md text-xs sm:text-sm text-red-700 hover:bg-red-50 cursor-pointer"
+                >
+                  รายงานความคิดเห็น
+                </button>
+              </>
             )}
           </div>
         )}

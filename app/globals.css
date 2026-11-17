@@ -255,8 +255,10 @@ body {
         transparent 0 31px,
         rgb(123 129 137 / 0.15) 31px 32px
       );
-    background-size: 36px 240px, auto, auto;
-    background-repeat: repeat-y, no-repeat, repeat;
+    /* The margin line is a tile one screen tall that repeats down the page,
+       so it keeps going once you scroll past the first screen. */
+    background-size: 36px 240px, 100% 100vh, auto;
+    background-repeat: repeat-y, repeat-y, repeat;
   }
 }
 

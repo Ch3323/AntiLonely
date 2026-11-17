@@ -57,6 +57,7 @@ async function PostThreadContent({ params }: PostThreadPageProps) {
         memberStatus={data.memberStatus}
         canComment={data.canComment}
         canReact={data.canReact}
+        canModerate={data.canModerate}
         initialThread={data.thread}
         currentUser={data.currentUser}
         myRooms={data.myRooms}

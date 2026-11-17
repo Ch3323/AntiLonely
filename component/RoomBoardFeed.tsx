@@ -60,6 +60,12 @@ import {
 } from "@/lib/styles";
 import type { MyRoom, Room } from "@/types/room";
 import type { RoomPresenceConfig } from "@/lib/room-presence";
+import type { RoomRulesStyle } from "@/lib/room-board";
+import {
+  DeleteRoomDialog,
+  EditRoomDialog,
+  RoomMembersDialog,
+} from "@/component/RoomManageDialogs";
 import type {
   BoardPostSummary,
   ReactionItem,
@@ -68,14 +74,47 @@ import type {
 } from "@/types/post-thread";
 
 type Props = {
-  room: Room & { rulesList?: string[]; isLocked?: boolean };
+  room: Room & {
+    rulesList?: string[];
+    rulesStyle?: RoomRulesStyle;
+    isLocked?: boolean;
+  };
   initialPosts: BoardPostSummary[];
   initialMembership: RoomBoardMembershipState;
   currentUser?: RoomBoardViewer | null;
+  // Owner or moderator: may delete other people's posts.
+  canModerate?: boolean;
+  // Owner: may edit the room, remove members and delete it.
+  canManage?: boolean;
   myRooms?: MyRoom[];
   serverTime?: string;
   presence?: RoomPresenceConfig | null;
 };
+
+// The room's rules as a numbered list or a bulleted one, as its owner wrote
+// them. Markers are drawn by hand so long rules wrap under the text.
+function RulesList({
+  rules,
+  style = "number",
+  className,
+}: {
+  rules: string[];
+  style?: RoomRulesStyle;
+  className: string;
+}) {
+  return (
+    <ul className={`list-none ${className}`}>
+      {rules.map((rule, index) => (
+        <li key={index} className="flex gap-2">
+          <span aria-hidden="true" className="w-5 shrink-0 text-right text-ink-soft">
+            {style === "bullet" ? "•" : `${index + 1}.`}
+          </span>
+          <span className="min-w-0 break-words">{rule}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
 
 function createOptimisticPost(
   roomId: string,
@@ -106,6 +145,7 @@ type BoardPostRowProps = {
   roomId: string;
   referenceTime: number;
   currentUserId: string | null;
+  canModerate: boolean;
   onEditPost: (postId: string, newContent: string) => void;
   onDeletePost: (postId: string) => void;
   onToggleReaction: (postId: string, emoji: string) => Promise<boolean>;
@@ -122,6 +162,7 @@ const BoardPostRow = memo(function BoardPostRow({
   roomId,
   referenceTime,
   currentUserId,
+  canModerate,
   onEditPost,
   onDeletePost,
   onToggleReaction,
@@ -164,6 +205,7 @@ const BoardPostRow = memo(function BoardPostRow({
       createdAt={post.createdAt}
       content={post.content}
       isOwner={Boolean(currentUserId && post.authorId === currentUserId)}
+      canModerate={canModerate}
       isEdited={post.isEdited}
       reactions={post.reactions}
       replyCount={post.replyCount}
@@ -181,6 +223,8 @@ export default function RoomBoardFeed({
   initialPosts,
   initialMembership,
   currentUser = null,
+  canModerate = false,
+  canManage = false,
   myRooms = [],
   serverTime,
   presence = null,
@@ -233,6 +277,9 @@ export default function RoomBoardFeed({
   const [isLeaveModalOpen, setIsLeaveModalOpen] = useState(false);
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
   const [isReportingRoom, setIsReportingRoom] = useState(false);
+  const [manageDialog, setManageDialog] = useState<
+    "edit" | "members" | "delete" | null
+  >(null);
   const roomMenuRef = useRef<HTMLDivElement>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const toastTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -442,7 +489,13 @@ export default function RoomBoardFeed({
       const deletedPost =
         deletedIndex >= 0 ? postsRef.current[deletedIndex] : undefined;
       pendingChanges.markDeleting([postId]);
-      setPosts((prev) => deleteBoardPost(prev, postId, currentUser.id));
+      // A moderator removes someone else's post; the author's own goes through
+      // the usual check.
+      setPosts((prev) =>
+        canModerate
+          ? prev.filter((p) => p.id !== postId)
+          : deleteBoardPost(prev, postId, currentUser.id)
+      );
 
       const restoreDeletedPost = () => {
         if (!deletedPost) return;
@@ -475,7 +528,7 @@ export default function RoomBoardFeed({
         pendingChanges.clearDeleting([postId]);
       }
     },
-    [currentUser, pendingChanges, room.id, showToast]
+    [canModerate, currentUser, pendingChanges, room.id, showToast]
   );
 
   const updatePostReactions = useCallback(
@@ -848,6 +901,42 @@ export default function RoomBoardFeed({
                     </button>
                   )}
 
+                  {canManage && (
+                    <>
+                      <div className="my-1 border-t-[1.5px] border-dashed border-edge" />
+                      {(
+                        [
+                          ["edit", "แก้ไขข้อมูลและกติกา"],
+                          ["members", "จัดการสมาชิก"],
+                        ] as const
+                      ).map(([dialog, label]) => (
+                        <button
+                          key={dialog}
+                          type="button"
+                          role="menuitem"
+                          onClick={() => {
+                            setIsRoomMenuOpen(false);
+                            setManageDialog(dialog);
+                          }}
+                          className="w-full cursor-pointer rounded-lg px-3 py-2 text-left hover:bg-butter motion-safe:transition-colors"
+                        >
+                          {label}
+                        </button>
+                      ))}
+                      <button
+                        type="button"
+                        role="menuitem"
+                        onClick={() => {
+                          setIsRoomMenuOpen(false);
+                          setManageDialog("delete");
+                        }}
+                        className="w-full cursor-pointer rounded-lg px-3 py-2 text-left text-red-700 hover:bg-red-50 motion-safe:transition-colors"
+                      >
+                        ลบห้อง
+                      </button>
+                    </>
+                  )}
+
                   <div className="my-1 border-t-[1.5px] border-dashed border-edge" />
 
                   <button
@@ -895,13 +984,11 @@ export default function RoomBoardFeed({
             </svg>
           </summary>
           <div className="px-4 pb-4">
-            <ol className="space-y-2 border-t-[1.5px] border-dashed border-edge pt-3 text-sm text-ink">
-              {rulesList.map((rule, index) => (
-                <li key={index}>
-                  {index + 1}. {rule}
-                </li>
-              ))}
-            </ol>
+            <RulesList
+              rules={rulesList}
+              style={room.rulesStyle}
+              className="space-y-2 border-t-[1.5px] border-dashed border-edge pt-3 text-sm text-ink"
+            />
           </div>
         </details>
 
@@ -981,6 +1068,7 @@ export default function RoomBoardFeed({
                 roomId={canonicalRoomSegment}
                 referenceTime={referenceTime}
                 currentUserId={currentUser?.id ?? null}
+                canModerate={canModerate}
                 onEditPost={handleEditPost}
                 onDeletePost={handleDeletePost}
                 onToggleReaction={handleTogglePostReaction}
@@ -1001,13 +1089,11 @@ export default function RoomBoardFeed({
             กติกาของห้อง
           </h2>
 
-          <ol className="space-y-2 break-words text-sm text-ink">
-            {rulesList.map((rule, index) => (
-              <li key={index}>
-                {index + 1}. {rule}
-              </li>
-            ))}
-          </ol>
+          <RulesList
+            rules={rulesList}
+            style={room.rulesStyle}
+            className="space-y-2 break-words text-sm text-ink"
+          />
         </aside>
       </main>
 
@@ -1069,6 +1155,34 @@ export default function RoomBoardFeed({
             setMembership(next);
             showToast(`เข้าร่วม${room.name}เรียบร้อยแล้ว`);
           }}
+        />
+      )}
+
+      {manageDialog === "edit" && (
+        <EditRoomDialog
+          roomId={room.id}
+          description={room.description}
+          rulesList={rulesList}
+          rulesStyle={room.rulesStyle ?? "number"}
+          rulesAreDefault={
+            rulesList.join("\n") === DEFAULT_ROOM_RULES.join("\n")
+          }
+          onClose={() => setManageDialog(null)}
+          onSaved={showToast}
+        />
+      )}
+      {manageDialog === "members" && (
+        <RoomMembersDialog
+          roomId={room.id}
+          onClose={() => setManageDialog(null)}
+          onKicked={showToast}
+        />
+      )}
+      {manageDialog === "delete" && (
+        <DeleteRoomDialog
+          roomId={room.id}
+          roomName={room.name}
+          onClose={() => setManageDialog(null)}
         />
       )}
 

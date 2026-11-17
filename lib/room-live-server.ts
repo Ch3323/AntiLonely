@@ -37,6 +37,16 @@ export function liveThreadTokenFor(
   );
 }
 
+/** The one channel Home listens on: rooms created, members and posts moved. */
+export function lobbyTopicFor(secret: string): string {
+  return `room-live:${keyedHash(secret, "antilonely/live-lobby/v1").slice(0, TOPIC_HASH_LENGTH)}`;
+}
+
+/** One person's channel: their notifications changed. Opaque, per user. */
+export function userTopicFor(secret: string, userId: string): string {
+  return `room-live:${keyedHash(secret, "antilonely/live-user/v1", userId).slice(0, TOPIC_HASH_LENGTH)}`;
+}
+
 export function buildRoomLiveConfig(input: {
   secret: string | undefined;
   roomId: string;
@@ -85,6 +95,20 @@ export function getRoomLiveConfig(input: {
   return buildRoomLiveConfig({ ...input, secret: env.secret });
 }
 
+/** Home's channel name, or null when Realtime isn't configured. */
+export function getLobbyLiveTopic(): string | null {
+  const env = readEnv();
+  if (!isRoomLiveConfigured(env) || !env.secret) return null;
+  return lobbyTopicFor(env.secret);
+}
+
+/** A person's own channel name, or null when Realtime isn't configured. */
+export function getUserLiveTopic(userId: string): string | null {
+  const env = readEnv();
+  if (!isRoomLiveConfigured(env) || !env.secret) return null;
+  return userTopicFor(env.secret, userId);
+}
+
 /** The REST endpoint for one broadcast, from the project URL in any form. */
 export function broadcastUrlFor(projectUrl: string, topic: string): string {
   const origin = new URL(projectUrl).origin;
@@ -109,8 +133,6 @@ export async function sendRoomLiveSignal(
 ): Promise<boolean> {
   const env = deps.env ?? readEnv();
   if (!env.url || !env.key || !env.secret) return false;
-  const doFetch = deps.fetchImpl ?? fetch;
-  const topic = liveTopicFor(env.secret, input.roomId);
   const signal = makeRoomLiveSignal({
     thread: input.postId
       ? liveThreadTokenFor(env.secret, input.roomId, input.postId)
@@ -118,10 +140,58 @@ export async function sendRoomLiveSignal(
     board: input.board,
     wholeRoom: input.wholeRoom,
   });
+  return postBroadcast(
+    env.url,
+    env.key,
+    liveTopicFor(env.secret, input.roomId),
+    signal,
+    deps.fetchImpl
+  );
+}
+
+/** Tells every open Home that rooms, member counts or post counts moved. */
+export async function sendLobbySignal(
+  deps: { env?: RealtimeEnv; fetchImpl?: typeof fetch } = {}
+): Promise<boolean> {
+  const env = deps.env ?? readEnv();
+  if (!env.url || !env.key || !env.secret) return false;
+  return postBroadcast(
+    env.url,
+    env.key,
+    lobbyTopicFor(env.secret),
+    makeRoomLiveSignal({ thread: null, board: true }),
+    deps.fetchImpl
+  );
+}
+
+/** Tells one person's open notifications page that their list changed. */
+export async function sendUserSignal(
+  userId: string,
+  deps: { env?: RealtimeEnv; fetchImpl?: typeof fetch } = {}
+): Promise<boolean> {
+  const env = deps.env ?? readEnv();
+  if (!env.url || !env.key || !env.secret) return false;
+  return postBroadcast(
+    env.url,
+    env.key,
+    userTopicFor(env.secret, userId),
+    makeRoomLiveSignal({ thread: null, board: true }),
+    deps.fetchImpl
+  );
+}
+
+async function postBroadcast(
+  url: string,
+  key: string,
+  topic: string,
+  signal: unknown,
+  fetchImpl: typeof fetch | undefined
+): Promise<boolean> {
+  const doFetch = fetchImpl ?? fetch;
   try {
-    const res = await doFetch(broadcastUrlFor(env.url, topic), {
+    const res = await doFetch(broadcastUrlFor(url, topic), {
       method: "POST",
-      headers: { apikey: env.key, "Content-Type": "application/json" },
+      headers: { apikey: key, "Content-Type": "application/json" },
       body: JSON.stringify(signal),
       signal: AbortSignal.timeout(SEND_TIMEOUT_MS),
       cache: "no-store",

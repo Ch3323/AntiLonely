@@ -1,8 +1,9 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { signalRoomChange } from '@/lib/room-live-notify';
+import { signalRoomChange, signalUserChange } from '@/lib/room-live-notify';
 import { prisma } from '@/lib/prisma';
+import { canModerateRoom, getRoomRole } from '@/lib/room-permissions';
 import { toggleMessageReaction } from '@/lib/reaction-service';
 import {
   formatReportReason,
@@ -53,6 +54,8 @@ export interface PostThreadPageData {
   memberStatus: DbMemberStatus | null;
   canComment: boolean;
   canReact: boolean;
+  // Owner or moderator of the room: may delete other people's comments.
+  canModerate: boolean;
   thread: PostThread;
   currentUser: PostThreadViewer | null;
   myRooms: MyRoom[];
@@ -343,6 +346,7 @@ export async function getPostThreadData(
       memberStatus,
       canComment: false,
       canReact: false,
+      canModerate: false,
       thread: emptyThread,
       currentUser,
       myRooms,
@@ -410,6 +414,9 @@ export async function getPostThreadData(
     memberStatus,
     canComment,
     canReact,
+    canModerate: canModerateRoom(
+      viewer ? await getRoomRole(roomRecord.id, viewer.id) : null
+    ),
     thread,
     currentUser,
     myRooms,
@@ -482,7 +489,7 @@ export async function createThreadReply(input: {
         : visibleMessages.find((m) => m.id === parentId)?.authorId ?? null;
 
     await prisma.$transaction(async (tx) => {
-      await tx.message.create({
+      const created = await tx.message.create({
         data: {
           roomId: context.room.id,
           authorId: viewer.id,
@@ -490,6 +497,7 @@ export async function createThreadReply(input: {
           content: validated.value,
           status: 'visible',
         },
+        select: { id: true },
       });
 
       if (parentAuthorId && parentAuthorId !== viewer.id) {
@@ -498,12 +506,20 @@ export async function createThreadReply(input: {
             userId: parentAuthorId,
             type: 'reply',
             isRead: false,
+            // Lets the notification say who replied and link to the thread.
+            actorId: viewer.id,
+            roomId: context.room.id,
+            postId: context.rootPost.id,
+            messageId: created.id,
           },
         });
       }
     });
 
     revalidateThreadPaths(context.room.id, context.room.slug, context.rootPost.id);
+    if (parentAuthorId && parentAuthorId !== viewer.id) {
+      signalUserChange(parentAuthorId);
+    }
     // The board shows each post's reply count, so it changes too.
     signalRoomChange({
       roomId: context.room.id,
@@ -683,7 +699,11 @@ export async function deleteThreadMessage(input: {
       return { ok: false, error: 'ไม่พบความคิดเห็นที่ต้องการลบ' };
     }
 
-    if (target.authorId !== viewer.id) {
+    // Your own comment, or any comment if you own or moderate the room.
+    if (
+      target.authorId !== viewer.id &&
+      !canModerateRoom(await getRoomRole(context.room.id, viewer.id))
+    ) {
       return { ok: false, error: 'คุณลบได้เฉพาะความคิดเห็นของตัวเองเท่านั้น' };
     }
 
