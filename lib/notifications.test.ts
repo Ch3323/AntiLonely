@@ -3,6 +3,7 @@ import test from 'node:test';
 import {
   filterNotifications,
   groupNotifications,
+  mapDbNotificationsToItems,
   markNotificationAsRead,
   markAllNotificationsAsRead,
   countUnreadNotifications,
@@ -268,5 +269,38 @@ test('getMockNotificationsFeed produces deterministic feed matching mockup layou
 
   assert.equal(grouped.earlier[0].actor.name, 'ฝ่ายดูแลระบบ');
   assert.equal(grouped.earlier[0].systemIcon, 'shield');
+});
+
+test('mapDbNotificationsToItems enriches notifications linked to a sanction via sanctionId', () => {
+  const t1 = new Date('2026-10-13T09:50:00.000Z');
+  const t2 = new Date('2026-10-13T08:00:00.000Z');
+
+  const items = mapDbNotificationsToItems([
+    {
+      id: 'n-warn',
+      type: 'report',
+      isRead: false,
+      createdAt: t1,
+      sanction: { type: 'warning', reason: 'ใช้ถ้อยคำไม่สุภาพ' },
+    },
+    { id: 'n-report', type: 'report', isRead: true, createdAt: t2, sanction: null },
+    { id: 'n-reply', type: 'reply', isRead: false, createdAt: t2, sanction: null },
+  ]);
+
+  assert.equal(items[0].id, 'n-warn');
+  assert.equal(items[0].actor.name, 'ทีมผู้ดูแล AntiLonely');
+  assert.equal(items[0].actionText, 'ส่งคำเตือนถึงคุณ');
+  assert.equal(items[0].contentPreview, 'เหตุผล: ใช้ถ้อยคำไม่สุภาพ');
+  assert.deepEqual(items[0].badge, { text: 'คำเตือน', variant: 'warning' });
+  assert.equal(items[0].isImportant, true);
+  assert.equal(items[0].systemIcon, 'alert');
+
+  assert.equal(items[1].id, 'n-report');
+  assert.equal(items[1].actionText, 'มีการอัปเดตเกี่ยวกับรายงาน');
+  assert.equal(items[1].contentPreview, undefined);
+
+  assert.equal(items[2].id, 'n-reply');
+  assert.equal(items[2].type, 'reply');
+  assert.equal(items[2].actionText, 'มีคนตอบกระทู้ของคุณ');
 });
 

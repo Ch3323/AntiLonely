@@ -1,14 +1,22 @@
 // Outgoing email. All sending goes through sendEmail, so switching provider
-// means changing that one function. No imports here so the message builders
-// can be unit-tested with node --test.
+// means changing that one function. Kept free of Next/Prisma imports so the
+// message builders can be unit-tested with node --test.
 //
-// Real mail is sent through Resend (https://resend.com) when RESEND_API_KEY
-// and EMAIL_FROM are set (see .env.example). Without them nothing is sent:
-// in development the message, link included, is printed to the server
-// console instead; in production only an error is logged, never the link.
-// EMAIL_LOG_ONLY=1 prints instead of sending even when the keys are set, for
+// Real mail is sent through Gmail SMTP (when SMTP_USER and SMTP_PASS are set)
+// or Resend (https://resend.com, when RESEND_API_KEY and EMAIL_FROM are set).
+// Without either provider configured nothing is sent: in development the
+// message, link included, is printed to the server console instead; in
+// production only an error is logged, never the link.
+// EMAIL_LOG_ONLY=1 prints instead of sending even when keys are set, for
 // trying the flows in development with made-up addresses. It is ignored in
 // production.
+
+import {
+  RESET_LINK_LIFETIME_SECONDS,
+  VERIFY_LINK_LIFETIME_SECONDS,
+} from "./email-constants.ts";
+
+export { RESET_LINK_LIFETIME_SECONDS, VERIFY_LINK_LIFETIME_SECONDS };
 
 export type EmailMessage = {
   to: string;
@@ -17,16 +25,23 @@ export type EmailMessage = {
 };
 
 export async function sendEmail(message: EmailMessage): Promise<void> {
-  const apiKey = process.env.RESEND_API_KEY;
-  const from = process.env.EMAIL_FROM;
+  const smtpUser = process.env.SMTP_USER?.trim();
+  const smtpPass = process.env.SMTP_PASS?.replace(/\s+/g, "");
+  const apiKey = process.env.RESEND_API_KEY?.trim();
+  const from =
+    process.env.EMAIL_FROM?.trim() ||
+    (smtpUser ? `AntiLonely <${smtpUser}>` : undefined);
 
   const logOnly =
     process.env.EMAIL_LOG_ONLY === "1" && process.env.NODE_ENV !== "production";
 
-  if (!apiKey || !from || logOnly) {
+  const hasSmtp = Boolean(smtpUser && smtpPass);
+  const hasResend = Boolean(apiKey && from);
+
+  if ((!hasSmtp && !hasResend) || logOnly) {
     if (process.env.NODE_ENV === "production") {
       console.error(
-        `[email] Not sent ("${message.subject}"): set RESEND_API_KEY and EMAIL_FROM to send mail.`,
+        `[email] Not sent ("${message.subject}"): set SMTP_USER/SMTP_PASS or RESEND_API_KEY/EMAIL_FROM to send mail.`,
       );
       return;
     }
@@ -42,6 +57,24 @@ export async function sendEmail(message: EmailMessage): Promise<void> {
         "",
       ].join("\n"),
     );
+    return;
+  }
+
+  if (hasSmtp) {
+    const nodemailer = (await import("nodemailer")).default;
+    const transporter = nodemailer.createTransport({
+      service: "gmail",
+      auth: {
+        user: smtpUser,
+        pass: smtpPass,
+      },
+    });
+    await transporter.sendMail({
+      from,
+      to: message.to,
+      subject: message.subject,
+      text: message.text,
+    });
     return;
   }
 
@@ -65,8 +98,6 @@ export async function sendEmail(message: EmailMessage): Promise<void> {
 
 // How long a reset link works, in seconds (Better Auth's
 // resetPasswordTokenExpiresIn). The email and the form both say so.
-export const RESET_LINK_LIFETIME_SECONDS = 60 * 60;
-
 export function resetPasswordEmail(to: string, url: string): EmailMessage {
   return {
     to,
@@ -109,8 +140,6 @@ export function googleOnlyAccountEmail(to: string, loginUrl: string): EmailMessa
 
 // How long the link in the "confirm your email" message works, in seconds
 // (Better Auth's emailVerification.expiresIn). The email says so.
-export const VERIFY_LINK_LIFETIME_SECONDS = 24 * 60 * 60;
-
 // Sent after signing up with an email and password, and again on request.
 // The account can't be used until the link has been opened.
 export function verifyEmailMessage(to: string, url: string): EmailMessage {
@@ -144,6 +173,25 @@ type SanctionEmailInput = {
 function sanctionReasonLines(reason: string): string[] {
   const trimmed = reason.trim();
   return trimmed ? ["เหตุผลจากทีมงาน:", trimmed, ""] : [];
+}
+
+// Sent when a moderator or admin issues a warning sanction with email notification enabled.
+export function warningSanctionEmail(to: string, reason: string): EmailMessage {
+  const cleanReason = reason.trim();
+  return {
+    to,
+    subject: "คำเตือนจากทีมผู้ดูแล AntiLonely",
+    text: [
+      "สวัสดี",
+      "",
+      "ทีมผู้ดูแล AntiLonely ได้ส่งคำเตือนถึงบัญชีของคุณ",
+      `เหตุผล: ${cleanReason}`,
+      "",
+      "บัญชีของคุณยังสามารถเข้าใช้งานได้ตามปกติ ขอความร่วมมือปฏิบัติตามกติกาของชุมชนเพื่อให้พื้นที่นี้ปลอดภัยสำหรับทุกคน",
+      "",
+      "ทีมผู้ดูแล AntiLonely",
+    ].join("\n"),
+  };
 }
 
 // Sent when a moderator or admin suspends an account and leaves "แจ้งเตือน
@@ -183,6 +231,22 @@ export function banEmail(input: SanctionEmailInput): EmailMessage {
       `อ่านกติกาของชุมชนได้ที่ ${input.rulesUrl}`,
       "",
       "AntiLonely",
+    ].join("\n"),
+  };
+}
+
+// Sent when a moderator or admin lifts an active suspension or ban on an account.
+export function liftSanctionEmail(to: string): EmailMessage {
+  return {
+    to,
+    subject: "บัญชี AntiLonely ของคุณกลับมาใช้งานได้ตามปกติแล้ว",
+    text: [
+      "สวัสดี",
+      "",
+      "ทีมผู้ดูแล AntiLonely ได้ปลดการระงับการใช้งานบัญชีของคุณแล้ว",
+      "ตอนนี้คุณสามารถกลับเข้าสู่ระบบและใช้งานได้ตามปกติ",
+      "",
+      "ทีมผู้ดูแล AntiLonely",
     ].join("\n"),
   };
 }

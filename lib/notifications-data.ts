@@ -1,23 +1,29 @@
+import {
+  mapDbNotificationsToItems,
+  type DbNotificationContext,
+} from "@/lib/notifications";
 import { prisma } from "@/lib/prisma";
 import { resolveAuthorAlias } from "@/lib/room-board";
-import type { NotificationItem } from "@/types/notification";
-
-const TEXT: Record<string, { actionText: string; category: NotificationItem["type"] }> = {
-  reply: { actionText: "ตอบกลับคุณ", category: "reply" },
-  mention: { actionText: "กล่าวถึงคุณ", category: "mention" },
-  reaction: { actionText: "แสดงรีแอคชันกับกระทู้ของคุณ", category: "reaction" },
-  report: { actionText: "มีการอัปเดตเกี่ยวกับรายงาน", category: "report" },
-};
-
-// Notifications made before they recorded who and where have no one to name.
-const UNKNOWN_ACTOR = "มีคน";
 
 export async function getNotificationItems(userId: string) {
   const rows = await prisma.notification.findMany({
     where: { userId },
     orderBy: { createdAt: "desc" },
     take: 50,
-    include: {
+    select: {
+      id: true,
+      type: true,
+      isRead: true,
+      createdAt: true,
+      roomId: true,
+      postId: true,
+      messageId: true,
+      sanction: {
+        select: {
+          type: true,
+          reason: true,
+        },
+      },
       actor: {
         select: {
           id: true,
@@ -52,41 +58,20 @@ export async function getNotificationItems(userId: string) {
   const roomsById = new Map(rooms.map((room) => [room.id, room]));
   const messagesById = new Map(messages.map((message) => [message.id, message]));
 
-  const items: NotificationItem[] = rows.map((n) => {
-    const t = TEXT[String(n.type)] ?? {
-      actionText: "มีการแจ้งเตือนใหม่",
-      category: "report" as const,
-    };
-    const room = n.roomId ? roomsById.get(n.roomId) : undefined;
-    const message = n.messageId ? messagesById.get(n.messageId) : undefined;
-    const actorName = n.actor
-      ? resolveAuthorAlias(n.actor)
-      : n.type === "report"
-        ? "AntiLonely"
-        : UNKNOWN_ACTOR;
-    // "<name> ตอบกลับคุณ ในห้อง <room>"
-    const actionText = room ? `${t.actionText} ในห้อง ${room.name}` : t.actionText;
-    const targetUrl =
-      room && n.postId
-        ? `/rooms/${room.slug}/posts/${n.postId}`
-        : room
-          ? `/rooms/${room.slug}`
-          : "/notifications";
-
-    return {
-      id: n.id,
-      type: t.category,
-      actor: {
-        name: actorName,
-        ...(n.actor?.image ? { avatarUrl: n.actor.image } : {}),
-      },
-      actionText,
-      ...(message ? { contentPreview: message.content } : {}),
-      createdAt: n.createdAt.toISOString(),
-      isRead: n.isRead,
-      targetUrl,
-    };
-  });
+  const items = mapDbNotificationsToItems(
+    rows.map((n) => {
+      const room = n.roomId ? roomsById.get(n.roomId) : undefined;
+      const context: DbNotificationContext = {
+        actorName: n.actor ? resolveAuthorAlias(n.actor) : null,
+        actorImage: n.actor?.image ?? null,
+        roomName: room?.name ?? null,
+        roomSlug: room?.slug ?? null,
+        postId: n.postId,
+        preview: n.messageId ? (messagesById.get(n.messageId)?.content ?? null) : null,
+      };
+      return { ...n, context };
+    }),
+  );
 
   return { items, serverTime: new Date().toISOString() };
 }
