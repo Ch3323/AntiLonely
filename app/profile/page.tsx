@@ -8,7 +8,6 @@ import Icon from "@/component/Icon";
 import { useJoinedCount } from "@/component/useJoinedCount";
 import PostCard from "@/component/PostCard";
 import Tape from "@/component/Tape";
-import { currentUser, myRooms } from "@/lib/mock";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
@@ -144,10 +143,7 @@ export default function ProfilePage() {
 
   return (
     <div className="flex flex-1 flex-col">
-      <Header
-        rooms={myRooms}
-        alias={currentUser.alias}
-      />
+      <Header rooms={[]} alias="" />
 
       <main className="mx-auto flex w-full max-w-4xl flex-col gap-6 px-4 py-6 sm:py-8">
         <Link
