@@ -9,6 +9,7 @@ import React, {
   useState,
 } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import type {
   CommentSortOrder,
   PostThread,
@@ -42,6 +43,7 @@ import { canMemberReactInRoom, type DbMemberStatus } from '@/lib/room-board';
 import {
   createThreadReply,
   deleteThreadMessage,
+  deleteThreadPost,
   reportThreadTarget,
   updateThreadMessage,
 } from '@/app/rooms/[roomId]/posts/[postId]/actions';
@@ -52,6 +54,7 @@ import { CommentItem } from './CommentItem';
 import { ReportModal } from './ReportModal';
 import {
   dangerButtonClass,
+  disabledButtonClass,
   indexCardClass,
   outlineButtonClass,
 } from '@/lib/styles';
@@ -168,6 +171,7 @@ export function PostThreadClient({
   myRooms,
   serverTime,
 }: PostThreadClientProps) {
+  const router = useRouter();
   const [thread, setThread] = useState<PostThread>(initialThread);
   const [sortOrder, setSortOrder] = useState<CommentSortOrder>('oldest');
   const [isSortMenuOpen, setIsSortMenuOpen] = useState(false);
@@ -187,7 +191,14 @@ export function PostThreadClient({
     id: string;
     descendantCount: number;
   } | null>(null);
+  const [isConfirmingDeletePost, setIsConfirmingDeletePost] = useState(false);
+  const [isDeletingPost, setIsDeletingPost] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const isPostOwner = Boolean(
+    currentUser && thread.author.id === currentUser.id
+  );
+  const canDeletePost = Boolean(currentUser && (isPostOwner || canModerate));
 
   const mainReplyInputRef = useRef<HTMLInputElement | null>(null);
   const toastTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -264,6 +275,19 @@ export function PostThreadClient({
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [pendingDeleteTarget]);
+
+  useEffect(() => {
+    if (!isConfirmingDeletePost || isDeletingPost) return;
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        setIsConfirmingDeletePost(false);
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isConfirmingDeletePost, isDeletingPost]);
 
   const [referenceTime, setReferenceTime] = useState<number>(() => {
     const parsed = Date.parse(serverTime);
@@ -721,6 +745,46 @@ export function PostThreadClient({
     }
   };
 
+  const handleRequestDeletePost = useCallback(() => {
+    if (!currentUser) {
+      showToast('กรุณาเข้าสู่ระบบก่อนลบกระทู้');
+      return;
+    }
+    if (!canDeletePost) {
+      showToast('คุณไม่มีสิทธิ์ลบกระทู้นี้');
+      return;
+    }
+    setIsConfirmingDeletePost(true);
+  }, [canDeletePost, currentUser, showToast]);
+
+  const handleConfirmDeletePost = async () => {
+    if (isDeletingPost) return;
+    if (!currentUser) {
+      setIsConfirmingDeletePost(false);
+      showToast('กรุณาเข้าสู่ระบบก่อนลบกระทู้');
+      return;
+    }
+
+    setIsDeletingPost(true);
+    try {
+      const result = await deleteThreadPost({
+        roomId: room.id,
+        postId: thread.id,
+      });
+      if (!result.ok) {
+        setIsDeletingPost(false);
+        setIsConfirmingDeletePost(false);
+        showToast(result.error);
+        return;
+      }
+      router.push(`/rooms/${room.slug}`);
+    } catch {
+      setIsDeletingPost(false);
+      setIsConfirmingDeletePost(false);
+      showToast('ไม่สามารถลบกระทู้ได้ กรุณาลองใหม่อีกครั้ง');
+    }
+  };
+
   const handleOpenReport = useCallback(
     (type: ReportTargetType, targetId: string) => {
       if (!currentUser) {
@@ -864,11 +928,14 @@ export function PostThreadClient({
           thread={thread}
           referenceTime={referenceTime}
           isMuted={isMuted}
+          isOwner={isPostOwner}
+          canDelete={canDeletePost}
           onToggleReaction={handleTogglePostReaction}
           onReplyClick={handleReplyClick}
           onShareClick={handleCopyOrShare}
           onCopyLinkClick={handleCopyOrShare}
           onToggleMuteClick={handleToggleMute}
+          onDeleteClick={handleRequestDeletePost}
           onReportClick={handlePostReportClick}
         />
 
@@ -1024,6 +1091,58 @@ export function PostThreadClient({
           )}
         </section>
       </main>
+
+      {/* Delete Post Confirmation Modal */}
+      {isConfirmingDeletePost && (
+        <div
+          className="fixed inset-0 z-50 bg-ink/45 flex items-center justify-center p-4"
+          onClick={() => {
+            if (!isDeletingPost) {
+              setIsConfirmingDeletePost(false);
+            }
+          }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="delete-post-title"
+            onClick={(e) => e.stopPropagation()}
+            className={`flex w-full max-w-sm flex-col gap-4 p-6 text-ink ${indexCardClass}`}
+          >
+            <div className="flex flex-col gap-1">
+              <h3
+                id="delete-post-title"
+                className="font-display text-xl font-semibold"
+              >
+                ลบกระทู้นี้ไหม?
+              </h3>
+              <p className="text-sm text-ink-soft">
+                {totalComments > 0
+                  ? `กระทู้นี้และความคิดเห็นทั้งหมด ${totalComments} รายการจะถูกลบออกและไม่สามารถกู้คืนได้`
+                  : 'หากลบแล้ว กระทู้นี้จะหายไปและไม่สามารถกู้คืนได้'}
+              </p>
+            </div>
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                type="button"
+                disabled={isDeletingPost}
+                onClick={() => setIsConfirmingDeletePost(false)}
+                className={`cursor-pointer px-4 py-2 ${outlineButtonClass} ${disabledButtonClass}`}
+              >
+                ยกเลิก
+              </button>
+              <button
+                type="button"
+                disabled={isDeletingPost}
+                onClick={() => void handleConfirmDeletePost()}
+                className={`cursor-pointer px-4 py-2 ${dangerButtonClass} ${disabledButtonClass}`}
+              >
+                {isDeletingPost ? 'กำลังลบ...' : 'ลบกระทู้'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Delete Comment Confirmation Modal */}
       {pendingDeleteTarget && (
