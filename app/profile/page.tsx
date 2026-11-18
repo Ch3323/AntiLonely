@@ -5,7 +5,6 @@ import EditProfileButton from "@/component/EditProfileButton";
 import EmptyNote from "@/component/EmptyNote";
 import Header from "@/component/Header";
 import Icon from "@/component/Icon";
-import { useJoinedCount } from "@/component/useJoinedCount";
 import PostCard from "@/component/PostCard";
 import Tape from "@/component/Tape";
 import { currentUser, myRooms } from "@/lib/mock";
@@ -19,6 +18,8 @@ import {
   tabListClass,
 } from "@/lib/styles";
 
+type Reaction = { emoji: string; count: number; reactedByMe: boolean };
+
 type MyPost = {
   id: string;
   roomId: string;
@@ -27,6 +28,7 @@ type MyPost = {
   createdAt: string;
   content: string;
   replyCount: number;
+  reactions: Reaction[];
 };
 
 type ApiPost = {
@@ -36,6 +38,7 @@ type ApiPost = {
   content: string;
   createdAt: string;
   replyCount: number;
+  reactions: Reaction[];
 };
 
 type MyComment = {
@@ -47,6 +50,7 @@ type MyComment = {
   createdAt: string;
   content: string;
   replyCount: number;
+  reactions: Reaction[];
 };
 
 type ApiComment = {
@@ -57,6 +61,7 @@ type ApiComment = {
   content: string;
   createdAt: string;
   replyCount: number;
+  reactions: Reaction[];
 };
 
 type Tab = "posts" | "comments";
@@ -77,17 +82,17 @@ function timeAgo(iso: string): string {
 }
 
 export default function ProfilePage() {
-  // จำว่ากำลังเลือกแท็บไหนอยู่
   const [activeTab, setActiveTab] = useState<Tab>("posts");
   
   const { data: session, isPending, refetch } = authClient.useSession();
 
   const user = session?.user;
-  const joinedRoomCount = useJoinedCount(user?.id);
 
   const [myPosts, setMyPosts] = useState<MyPost[]>([]);
   const [myComments, setMyComments] = useState<MyComment[]>([]);
   const [reactionCount, setReactionCount] = useState(0);
+  const [postCount, setPostCount] = useState(0);
+  const [joinedRoomCount, setJoinedRoomCount] = useState(0);
   const [postsLoading, setPostsLoading] = useState(true);
   const [postsError, setPostsError] = useState(false);
 
@@ -102,7 +107,9 @@ export default function ProfilePage() {
         return r.json() as Promise<{ 
           posts: ApiPost[]; 
           comments: ApiComment[];
-          reactionCount: number
+          reactionCount: number;
+          postCount: number;
+          joinedRoomCount: number;
         }>;
       })
       .then((data) => {
@@ -115,6 +122,7 @@ export default function ProfilePage() {
             createdAt: p.createdAt,
             content: p.content,
             replyCount: p.replyCount,
+            reactions: p.reactions,
           })),
         );
         setMyComments(
@@ -127,9 +135,12 @@ export default function ProfilePage() {
             createdAt: c.createdAt,
             content: c.content,
             replyCount: c.replyCount,
+            reactions: c.reactions,
           })),
         );
         setReactionCount(data.reactionCount);
+        setPostCount(data.postCount);
+        setJoinedRoomCount(data.joinedRoomCount);
         setPostsError(false);
       })
       .catch((e) => {
@@ -205,7 +216,7 @@ export default function ProfilePage() {
               <p className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
                 <span className="flex items-center gap-1">
                   <Icon name="message" className="size-4 text-ink-soft" />
-                  <b>{postsLoading ? "-" : myPosts.length}</b> กระทู้
+                  <b>{postsLoading ? "-" : postCount}</b> กระทู้
                 </span>
                 <span className="flex items-center gap-1">
                   <Icon name="heart" className="size-4 text-ink-soft" />
@@ -213,7 +224,7 @@ export default function ProfilePage() {
                 </span>
                 <span className="flex items-center gap-1">
                   <Icon name="users" className="size-4 text-ink-soft" />
-                  เข้าร่วม <b>{joinedRoomCount}</b> ห้อง
+                  เข้าร่วม <b>{postsLoading ? "-" : joinedRoomCount}</b> ห้อง
                 </span>
               </p>
             </div>
@@ -296,6 +307,7 @@ export default function ProfilePage() {
                   createdAt={c.createdAt}
                   content={c.content}
                   replyCount={c.replyCount}
+                  reactions={c.reactions}
                   timeBeside
                 />
               ))}
