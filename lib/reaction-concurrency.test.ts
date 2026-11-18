@@ -774,7 +774,7 @@ describe('reaction service workflow & HTTP route handler', () => {
         loadContext: async () => {
           throw new Error('should not load context');
         },
-        loadVisibleRoomReplies: async () => {
+        loadVisiblePostReplies: async () => {
           throw new Error('should not scan replies');
         },
         createStoreForMessage: () => {
@@ -822,7 +822,7 @@ describe('reaction service workflow & HTTP route handler', () => {
             parent: null,
           },
         }),
-        loadVisibleRoomReplies: async () => {
+        loadVisiblePostReplies: async () => {
           fallbackScanCalled = true;
           return [];
         },
@@ -869,7 +869,7 @@ describe('reaction service workflow & HTTP route handler', () => {
             parent: null,
           },
         }),
-        loadVisibleRoomReplies: async () => {
+        loadVisiblePostReplies: async () => {
           fallbackScanCalled = true;
           return [
             {
