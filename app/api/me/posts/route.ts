@@ -40,7 +40,7 @@ export async function GET() {
           id: true,
           content: true,
           createdAt: true,
-          room: { select: { name: true, slug: true } },
+          room: { select: { id: true, name: true, slug: true } },
           reactions: { select: { emojiType: true, userId: true } },
           _count: { select: { replies: { where: { status: "visible" } } } },
         },
@@ -53,7 +53,7 @@ export async function GET() {
           id: true,
           content: true,
           createdAt: true,
-          room: { select: { name: true, slug: true } },
+          room: { select: { id: true, name: true, slug: true } },
           parent: { select: { id: true, parentId: true } },
           reactions: { select: { emojiType: true, userId: true } },
           _count: { select: { replies: { where: { status: "visible" } } } },
@@ -70,7 +70,9 @@ export async function GET() {
           },
         },
       }),
-      prisma.roomMember.count({ where: { userId, status: "active" } }),
+      prisma.roomMember.count({
+        where: { userId, status: "active", room: { status: "active" } },
+      }),
     ]);
 
   return Response.json({
@@ -82,6 +84,7 @@ export async function GET() {
       id: p.id,
       room: p.room.name,
       roomSlug: p.room.slug,
+      roomUuid: p.room.id,
       content: p.content,
       createdAt: p.createdAt.toISOString(),
       replyCount: p._count.replies,
@@ -95,6 +98,7 @@ export async function GET() {
               postId: c.parent.parentId ?? c.parent.id,
               room: c.room.name,
               roomSlug: c.room.slug,
+              roomUuid: c.room.id,
               content: c.content,
               createdAt: c.createdAt.toISOString(),
               replyCount: c._count.replies,
