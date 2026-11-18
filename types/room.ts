@@ -1,9 +1,3 @@
-// A recent post, shown on the room's card on Home.
-export type RoomPreview = {
-  author: string;
-  content: string;
-};
-
 export type Room = {
   id: string;
   slug?: string;
@@ -15,8 +9,6 @@ export type Room = {
   isPrivate: boolean;
   isNew: boolean;
   emoji?: string;
-  // The latest posts, newest first. Only the most popular few rooms have it.
-  preview?: RoomPreview[];
 };
 
 export type MyRoom = {

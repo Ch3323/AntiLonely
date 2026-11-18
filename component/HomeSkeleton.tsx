@@ -49,7 +49,7 @@ export default function HomeSkeleton() {
           </div>
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 md:grid-cols-1 lg:grid-cols-2">
             {Array.from({ length: 6 }, (_, index) => (
-              <RoomCardSkeleton key={index} preview={index < 3} />
+              <RoomCardSkeleton key={index} />
             ))}
           </div>
         </div>
@@ -60,7 +60,7 @@ export default function HomeSkeleton() {
 
 // Shaped like RoomCard: tile, name and description, then the stats and the
 // join button under a dashed line.
-function RoomCardSkeleton({ preview = false }: { preview?: boolean }) {
+function RoomCardSkeleton() {
   return (
     <div className="flex flex-col gap-3 rounded-xl border-[1.5px] border-edge-strong bg-white p-4 pt-5 shadow-[4px_4px_0_var(--color-edge)]">
       <div className="flex items-start gap-3">
@@ -70,7 +70,6 @@ function RoomCardSkeleton({ preview = false }: { preview?: boolean }) {
           <div className={`h-4 w-5/6 rounded-md ${skeletonClass}`} />
         </div>
       </div>
-      {preview && <div className={`h-[52px] rounded-lg ${skeletonClass}`} />}
       <div className="mt-auto flex items-center justify-between gap-2 border-t-[1.5px] border-dashed border-edge pt-3">
         <div className={`h-4 w-40 rounded-md ${skeletonClass}`} />
         <div className={`h-8 w-20 rounded-lg ${skeletonClass}`} />

@@ -6,21 +6,9 @@ import {
   resolveAuthorAlias,
 } from "@/lib/room-board";
 import { getViewerUser } from "@/lib/server-action-helpers";
-import type { MyRoom, Room, RoomPreview } from "@/types/room";
+import type { MyRoom, Room } from "@/types/room";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
-
-// How many rooms quote recent posts, how many posts, and how much of each.
-const FEATURED_ROOMS = 3;
-const PREVIEW_POSTS = 2;
-const PREVIEW_CHARS = 90;
-
-function previewText(content: string): string {
-  const flat = content.replace(/\s+/g, " ").trim();
-  return flat.length > PREVIEW_CHARS
-    ? `${flat.slice(0, PREVIEW_CHARS).trimEnd()}…`
-    : flat;
-}
 
 export type HomeViewer = {
   // The nickname shown in the welcome note.
@@ -98,9 +86,6 @@ export async function getHomeData(): Promise<HomeData> {
     postsTodayRows.map((row) => [row.roomId, row._count._all]),
   );
 
-  // A private room's posts are for its members, so only they get a preview.
-  const joinedIds = new Set(memberships.map((m) => m.roomId));
-
   // The password hash stays here: the page only learns whether there is one.
   const rooms: Room[] = roomRows
     .map((room) => ({
@@ -117,41 +102,6 @@ export async function getHomeData(): Promise<HomeData> {
     }))
     // Stable sort, so rooms with the same number of members stay oldest first.
     .sort((a, b) => b.members - a.members);
-
-  // Only the most popular few rooms quote their latest posts: reading them
-  // for every room made Home slow. Private rooms the viewer hasn't joined
-  // are skipped, since their posts are for members.
-  const featured = rooms
-    .filter((room) => !room.isPrivate || joinedIds.has(room.id))
-    .slice(0, FEATURED_ROOMS);
-  const previews = await Promise.all(
-    featured.map((room) =>
-      prisma.message.findMany({
-        where: { ...visiblePost, roomId: room.id },
-        orderBy: { createdAt: "desc" },
-        take: PREVIEW_POSTS,
-        select: {
-          content: true,
-          author: {
-            select: {
-              id: true,
-              username: true,
-              displayUsername: true,
-              name: true,
-            },
-          },
-        },
-      }),
-    ),
-  );
-  featured.forEach((room, index) => {
-    room.preview = previews[index].map(
-      (message): RoomPreview => ({
-        author: resolveAuthorAlias(message.author),
-        content: previewText(message.content),
-      }),
-    );
-  });
 
   const roomsById = new Map(rooms.map((room) => [room.id, room]));
   const myRooms: MyRoom[] = memberships.flatMap(({ roomId }) => {
