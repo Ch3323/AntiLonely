@@ -233,6 +233,9 @@ export interface ToggleMessageReactionDeps {
     messageId: string;
     userId: string;
     emoji: string;
+    /** Where the message lives, so a reaction can notify its author. */
+    roomId: string;
+    postId: string;
   }) => ToggleReactionStoreDeps<DbReactionRow>;
 }
 
@@ -346,6 +349,8 @@ export async function executeToggleMessageReaction(
       messageId: context.target.id,
       userId,
       emoji,
+      roomId: context.room.id,
+      postId,
     }),
   });
 

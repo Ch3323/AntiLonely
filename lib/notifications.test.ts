@@ -263,3 +263,39 @@ test('mapDbNotificationsToItems enriches notifications linked to a sanction via 
   assert.equal(items[2].actionText, 'มีคนตอบกระทู้ของคุณ');
 });
 
+
+test('mapDbNotificationsToItems names who reacted, with which emojis and on what', () => {
+  const base = {
+    actorName: 'แมวส้ม',
+    actorImage: null,
+    roomName: 'ห้องเหงา',
+    roomSlug: 'lonely',
+    postId: 'p1',
+    preview: 'สวัสดี',
+  };
+  const items = mapDbNotificationsToItems([
+    {
+      id: 'r-comment',
+      type: 'reaction',
+      isRead: false,
+      createdAt: new Date('2026-11-18T09:00:00.000Z'),
+      context: { ...base, messageId: 'c1', emojis: ['😭', '👍'] },
+    },
+    {
+      id: 'r-post',
+      type: 'reaction',
+      isRead: false,
+      createdAt: new Date('2026-11-18T08:00:00.000Z'),
+      context: { ...base, messageId: 'p1', emojis: [] },
+    },
+  ]);
+
+  assert.equal(items[0].type, 'reaction');
+  assert.equal(items[0].actor.name, 'แมวส้ม');
+  assert.equal(
+    items[0].actionText,
+    'แสดงรีแอคชัน 😭 👍 กับความคิดเห็นของคุณ ในห้อง ห้องเหงา'
+  );
+  assert.equal(items[0].targetUrl, '/rooms/lonely/posts/p1');
+  assert.equal(items[1].actionText, 'แสดงรีแอคชันกับกระทู้ของคุณ ในห้อง ห้องเหงา');
+});

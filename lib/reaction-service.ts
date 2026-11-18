@@ -3,6 +3,10 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { findPostSubtreeIds } from '@/lib/thread-subtree';
 import {
+  notifyReactionAdded,
+  retractReactionNotice,
+} from '@/lib/reaction-notify';
+import {
   executeToggleMessageReaction,
   type ToggleReactionServiceResult,
 } from '@/lib/reaction-helpers';
@@ -128,23 +132,32 @@ export async function toggleMessageReaction(input: {
           status: true,
         },
       }),
-    createStoreForMessage: ({ messageId, userId, emoji }) => ({
-      deleteMany: () =>
-        prisma.reaction.deleteMany({
+    createStoreForMessage: ({ messageId, userId, emoji, roomId, postId }) => ({
+      deleteMany: async () => {
+        const deleted = await prisma.reaction.deleteMany({
           where: {
             messageId,
             userId,
             emojiType: emoji,
           },
-        }),
-      create: () =>
-        prisma.reaction.create({
+        });
+        if (deleted.count > 0) {
+          await retractReactionNotice({ messageId, userId, roomId, postId });
+        }
+        return deleted;
+      },
+      create: async () => {
+        const created = await prisma.reaction.create({
           data: {
             messageId,
             userId,
             emojiType: emoji,
           },
-        }),
+        });
+        // The author hears who reacted to their message.
+        await notifyReactionAdded({ messageId, userId, roomId, postId });
+        return created;
+      },
       findMany: () =>
         prisma.reaction.findMany({
           where: { messageId },

@@ -13,7 +13,6 @@ interface NotificationTabsProps {
 const TABS: { id: NotificationCategory; label: string }[] = [
   { id: 'all', label: 'ทั้งหมด' },
   { id: 'reply', label: 'ตอบกลับ' },
-  { id: 'mention', label: 'กล่าวถึง' },
   { id: 'reaction', label: 'รีแอคชัน' },
   { id: 'report', label: 'รายงาน' },
 ];
