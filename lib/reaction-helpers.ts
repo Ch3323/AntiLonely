@@ -222,7 +222,7 @@ export interface ToggleMessageReactionDeps {
     messageId: string;
     isThreadMode: boolean;
   }) => Promise<ReactionContextSnapshot>;
-  loadVisibleRoomReplies: (roomId: string) => Promise<
+  loadVisiblePostReplies: (roomId: string, postId: string) => Promise<
     Array<{
       id: string;
       parentId: string | null;
@@ -330,7 +330,10 @@ export async function executeToggleMessageReaction(
     }
 
     if (ancestry === 'needs_fallback') {
-      const visibleMessages = await deps.loadVisibleRoomReplies(context.room.id);
+      const visibleMessages = await deps.loadVisiblePostReplies(
+        context.room.id,
+        postId
+      );
       if (!isMessageInPostSubtree(postId, messageId, visibleMessages)) {
         return { ok: false, status: 404, error: notFoundError };
       }

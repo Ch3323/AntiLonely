@@ -32,6 +32,7 @@ import {
   resolveRoomLookupTarget,
   type DbMemberStatus,
 } from '@/lib/room-board';
+import { findPostSubtreeIds } from '@/lib/thread-subtree';
 import type { MyRoom } from '@/types/room';
 import type {
   PostThread,
@@ -129,6 +130,39 @@ async function loadMutationContext(input: {
   };
 }
 
+// The visible replies under one post, with what the thread page shows for
+// each. Only this post's replies are loaded, not every reply in the room.
+async function loadThreadReplyRows(roomId: string, postId: string) {
+  const ids = await findPostSubtreeIds({ roomId, postId, visibleOnly: true });
+  if (ids.length === 0) return [];
+  return prisma.message.findMany({
+    where: {
+      id: { in: ids },
+      roomId,
+      status: 'visible',
+    },
+    orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+    include: {
+      author: {
+        select: {
+          id: true,
+          username: true,
+          displayUsername: true,
+          name: true,
+          image: true,
+        },
+      },
+      reactions: {
+        orderBy: { createdAt: 'asc' },
+        select: {
+          emojiType: true,
+          userId: true,
+        },
+      },
+    },
+  });
+}
+
 async function loadPostThreadSnapshot(
   room: { id: string; slug: string; name: string },
   postId: string,
@@ -161,32 +195,7 @@ async function loadPostThreadSnapshot(
         },
       },
     }),
-    prisma.message.findMany({
-      where: {
-        roomId: room.id,
-        parentId: { not: null },
-        status: 'visible',
-      },
-      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
-      include: {
-        author: {
-          select: {
-            id: true,
-            username: true,
-            displayUsername: true,
-            name: true,
-            image: true,
-          },
-        },
-        reactions: {
-          orderBy: { createdAt: 'asc' },
-          select: {
-            emojiType: true,
-            userId: true,
-          },
-        },
-      },
-    }),
+    loadThreadReplyRows(room.id, postId),
   ]);
 
   if (!rootPost) {
@@ -234,32 +243,7 @@ export async function getPostThreadData(
 
   const isPrivate = Boolean(roomRecord.passwordHash);
   const fetchReplyRows = () =>
-    prisma.message.findMany({
-      where: {
-        roomId: roomRecord.id,
-        parentId: { not: null },
-        status: 'visible',
-      },
-      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
-      include: {
-        author: {
-          select: {
-            id: true,
-            username: true,
-            displayUsername: true,
-            name: true,
-            image: true,
-          },
-        },
-        reactions: {
-          orderBy: { createdAt: 'asc' },
-          select: {
-            emojiType: true,
-            userId: true,
-          },
-        },
-      },
-    });
+    loadThreadReplyRows(roomRecord.id, normalizedPostId);
 
   const [
     rootPost,
@@ -485,8 +469,14 @@ export async function createThreadReply(input: {
 
     const visibleMessages = await prisma.message.findMany({
       where: {
+        id: {
+          in: await findPostSubtreeIds({
+            roomId: context.room.id,
+            postId: context.rootPost.id,
+            visibleOnly: true,
+          }),
+        },
         roomId: context.room.id,
-        parentId: { not: null },
         status: 'visible',
       },
       select: {
@@ -608,8 +598,14 @@ export async function updateThreadMessage(input: {
 
     const visibleMessages = await prisma.message.findMany({
       where: {
+        id: {
+          in: await findPostSubtreeIds({
+            roomId: context.room.id,
+            postId: context.rootPost.id,
+            visibleOnly: true,
+          }),
+        },
         roomId: context.room.id,
-        parentId: { not: null },
         status: 'visible',
       },
       select: {
@@ -696,10 +692,18 @@ export async function deleteThreadMessage(input: {
       return { ok: false, error: 'คุณถูกระงับสิทธิ์การใช้งานในห้องนี้' };
     }
 
+    // Every reply under this post, deleted ones included, so deleting a
+    // comment also reaches replies sitting under an already-deleted reply.
     const allRoomMessages = await prisma.message.findMany({
       where: {
+        id: {
+          in: await findPostSubtreeIds({
+            roomId: context.room.id,
+            postId: context.rootPost.id,
+            visibleOnly: false,
+          }),
+        },
         roomId: context.room.id,
-        parentId: { not: null },
       },
       select: {
         id: true,
@@ -889,8 +893,14 @@ export async function reportThreadTarget(input: {
 
     const visibleMessages = await prisma.message.findMany({
       where: {
+        id: {
+          in: await findPostSubtreeIds({
+            roomId: context.room.id,
+            postId: context.rootPost.id,
+            visibleOnly: true,
+          }),
+        },
         roomId: context.room.id,
-        parentId: { not: null },
         status: 'visible',
       },
       select: {

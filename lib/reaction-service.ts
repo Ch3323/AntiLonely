@@ -1,6 +1,7 @@
 import { headers } from 'next/headers';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { findPostSubtreeIds } from '@/lib/thread-subtree';
 import {
   executeToggleMessageReaction,
   type ToggleReactionServiceResult,
@@ -112,11 +113,13 @@ export async function toggleMessageReaction(input: {
         target,
       };
     },
-    loadVisibleRoomReplies: (roomId) =>
+    loadVisiblePostReplies: async (roomId, postId) =>
       prisma.message.findMany({
         where: {
+          id: {
+            in: await findPostSubtreeIds({ roomId, postId, visibleOnly: true }),
+          },
           roomId,
-          parentId: { not: null },
           status: 'visible',
         },
         select: {
