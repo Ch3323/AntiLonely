@@ -41,7 +41,11 @@ export async function getNotificationItems(userId: string) {
   const messageIds = [
     ...new Set(rows.flatMap((n) => (n.messageId ? [n.messageId] : []))),
   ];
-  const [rooms, messages] = await Promise.all([
+  // Which emojis each reactor still has on the message they reacted to.
+  const reactionRows = rows.filter(
+    (n) => n.type === "reaction" && n.actor && n.messageId,
+  );
+  const [rooms, messages, reactions] = await Promise.all([
     roomIds.length
       ? prisma.room.findMany({
           where: { id: { in: roomIds } },
@@ -54,7 +58,24 @@ export async function getNotificationItems(userId: string) {
           select: { id: true, content: true },
         })
       : [],
+    reactionRows.length
+      ? prisma.reaction.findMany({
+          where: {
+            OR: reactionRows.map((n) => ({
+              messageId: n.messageId!,
+              userId: n.actor!.id,
+            })),
+          },
+          orderBy: { createdAt: "asc" },
+          select: { messageId: true, userId: true, emojiType: true },
+        })
+      : [],
   ]);
+  const emojisByReactor = new Map<string, string[]>();
+  for (const r of reactions) {
+    const key = `${r.messageId}:${r.userId}`;
+    emojisByReactor.set(key, [...(emojisByReactor.get(key) ?? []), r.emojiType]);
+  }
   const roomsById = new Map(rooms.map((room) => [room.id, room]));
   const messagesById = new Map(messages.map((message) => [message.id, message]));
 
@@ -68,6 +89,11 @@ export async function getNotificationItems(userId: string) {
         roomSlug: room?.slug ?? null,
         postId: n.postId,
         preview: n.messageId ? (messagesById.get(n.messageId)?.content ?? null) : null,
+        messageId: n.messageId,
+        emojis:
+          n.type === "reaction" && n.actor && n.messageId
+            ? (emojisByReactor.get(`${n.messageId}:${n.actor.id}`) ?? [])
+            : undefined,
       };
       return { ...n, context };
     }),

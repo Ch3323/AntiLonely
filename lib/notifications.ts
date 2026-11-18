@@ -136,6 +136,10 @@ export interface DbNotificationContext {
   roomSlug: string | null;
   postId: string | null;
   preview: string | null;
+  /** The message the notice is about (a reaction's target). */
+  messageId?: string | null;
+  /** Emojis the actor currently has on that message (reactions only). */
+  emojis?: readonly string[];
 }
 
 // What each kind says when someone is named: "<name> <text>".
@@ -144,6 +148,16 @@ const ACTOR_NOTIFICATION_TEXT: Record<string, string> = {
   mention: 'กล่าวถึงคุณ',
   reaction: 'แสดงรีแอคชันกับกระทู้ของคุณ',
 };
+
+/** "รีแอคชัน 😭 👍 กับความคิดเห็นของคุณ": what they used, and on what. */
+function reactionActionText(ctx: DbNotificationContext): string {
+  const onWhat =
+    ctx.messageId && ctx.postId && ctx.messageId !== ctx.postId
+      ? 'ความคิดเห็นของคุณ'
+      : 'กระทู้ของคุณ';
+  const emojis = ctx.emojis?.length ? ` ${ctx.emojis.join(' ')} ` : '';
+  return `แสดงรีแอคชัน${emojis}กับ${onWhat}`;
+}
 
 const DEFAULT_NOTIFICATION_TEXT: Record<
   string,
@@ -198,7 +212,9 @@ export function mapDbNotificationsToItems(
           name: ctx.actorName ?? 'มีคน',
           ...(ctx.actorImage ? { avatarUrl: ctx.actorImage } : {}),
         },
-        actionText: `${actorText}${where}`,
+        actionText: `${
+          n.type === 'reaction' ? reactionActionText(ctx) : actorText
+        }${where}`,
         ...(ctx.preview ? { contentPreview: ctx.preview } : {}),
         createdAt: n.createdAt.toISOString(),
         isRead: n.isRead,

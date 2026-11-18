@@ -81,7 +81,6 @@ export function NotificationsClient({
     const categories: NotificationCategory[] = [
       'all',
       'reply',
-      'mention',
       'reaction',
       'report',
     ];
