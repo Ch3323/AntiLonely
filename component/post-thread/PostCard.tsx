@@ -16,11 +16,14 @@ interface PostCardProps {
   thread: PostThread;
   referenceTime: number;
   isMuted: boolean;
+  isOwner?: boolean;
+  canDelete?: boolean;
   onToggleReaction: (emoji: string) => Promise<boolean | void> | boolean | void;
   onReplyClick: () => void;
   onShareClick: () => void;
   onCopyLinkClick: () => void;
   onToggleMuteClick: () => void;
+  onDeleteClick?: () => void;
   onReportClick: () => void;
 }
 
@@ -28,11 +31,14 @@ export const PostCard = memo(function PostCard({
   thread,
   referenceTime,
   isMuted,
+  isOwner = false,
+  canDelete = false,
   onToggleReaction,
   onReplyClick,
   onShareClick,
   onCopyLinkClick,
   onToggleMuteClick,
+  onDeleteClick,
   onReportClick,
 }: PostCardProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -135,17 +141,32 @@ export const PostCard = memo(function PostCard({
               >
                 {isMuted ? 'เปิดแจ้งเตือนกระทู้นี้' : 'ปิดแจ้งเตือนกระทู้นี้'}
               </button>
-              <button
-                type="button"
-                role="menuitem"
-                onClick={() => {
-                  setIsMenuOpen(false);
-                  onReportClick();
-                }}
-                className="w-full text-left px-2.5 py-2 rounded-md text-sm text-red-700 hover:bg-red-50 cursor-pointer"
-              >
-                รายงานกระทู้
-              </button>
+              {canDelete && onDeleteClick && (
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setIsMenuOpen(false);
+                    onDeleteClick();
+                  }}
+                  className="w-full text-left px-2.5 py-2 rounded-md text-sm text-red-700 hover:bg-red-50 cursor-pointer"
+                >
+                  ลบกระทู้
+                </button>
+              )}
+              {!isOwner && (
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setIsMenuOpen(false);
+                    onReportClick();
+                  }}
+                  className="w-full text-left px-2.5 py-2 rounded-md text-sm text-red-700 hover:bg-red-50 cursor-pointer"
+                >
+                  รายงานกระทู้
+                </button>
+              )}
             </div>
           )}
         </div>

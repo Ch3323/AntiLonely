@@ -746,6 +746,68 @@ export async function deleteThreadMessage(input: {
   }, 'ไม่สามารถลบความคิดเห็นได้ กรุณาลองใหม่อีกครั้ง');
 }
 
+export async function deleteThreadPost(input: {
+  roomId: string;
+  postId: string;
+}): Promise<ActionResult<{ postId: string }>> {
+  return runSafeMutation(async () => {
+    const viewer = await getViewerUser();
+    if (!viewer) {
+      return { ok: false, error: 'กรุณาเข้าสู่ระบบก่อนลบกระทู้' };
+    }
+
+    const roomId = normalizeUuid(input.roomId);
+    const postId = normalizeUuid(input.postId);
+    if (!roomId || !postId) {
+      return { ok: false, error: 'ไม่พบกระทู้ที่ต้องการลบ' };
+    }
+
+    const context = await loadMutationContext({
+      roomId,
+      postId,
+      viewerId: viewer.id,
+    });
+    if (!context) {
+      return { ok: false, error: 'ไม่พบกระทู้ที่ต้องการลบ' };
+    }
+
+    if (context.room.passwordHash && context.memberStatus !== 'active') {
+      return {
+        ok: false,
+        error: 'เฉพาะสมาชิกของห้องส่วนตัวเท่านั้นที่สามารถดำเนินการได้',
+      };
+    }
+
+    if (context.memberStatus === 'muted') {
+      return { ok: false, error: 'คุณถูกจำกัดสิทธิ์การใช้งานในห้องนี้ชั่วคราว' };
+    }
+    if (context.memberStatus === 'banned') {
+      return { ok: false, error: 'คุณถูกระงับสิทธิ์การใช้งานในห้องนี้' };
+    }
+
+    if (
+      context.rootPost.authorId !== viewer.id &&
+      !canModerateRoom(await getRoomRole(context.room.id, viewer.id))
+    ) {
+      return { ok: false, error: 'คุณไม่มีสิทธิ์ลบกระทู้นี้' };
+    }
+
+    await prisma.message.update({
+      where: { id: context.rootPost.id },
+      data: { status: 'deleted' },
+    });
+
+    revalidateThreadPaths(context.room.id, context.room.slug, context.rootPost.id);
+    signalRoomChange({
+      roomId: context.room.id,
+      postId: context.rootPost.id,
+      board: true,
+    });
+
+    return { ok: true, data: { postId: context.rootPost.id } };
+  }, 'ไม่สามารถลบกระทู้ได้ กรุณาลองใหม่อีกครั้ง');
+}
+
 export async function toggleThreadReaction(input: {
   roomId: string;
   postId: string;
