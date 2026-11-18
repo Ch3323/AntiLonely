@@ -9,6 +9,7 @@ import PostCard from "@/component/PostCard";
 import Tape from "@/component/Tape";
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import type { ReactionItem } from "@/types/post-thread";
 import {
   highlightClass,
   indexCardClass,
@@ -23,6 +24,7 @@ type MyPost = {
   id: string;
   roomId: string;
   room: string;
+  roomUuid: string;
   time: string;
   createdAt: string;
   content: string;
@@ -33,6 +35,7 @@ type MyPost = {
 type ApiPost = {
   id: string;
   room: string;
+  roomUuid: string;
   roomSlug: string;
   content: string;
   createdAt: string;
@@ -45,6 +48,7 @@ type MyComment = {
   postId: string;
   roomId: string;
   room: string;
+  roomUuid: string;
   time: string;
   createdAt: string;
   content: string;
@@ -56,6 +60,7 @@ type ApiComment = {
   id: string;
   postId: string;
   room: string;
+  roomUuid: string;
   roomSlug: string;
   content: string;
   createdAt: string;
@@ -94,6 +99,7 @@ export default function ProfilePage() {
   const [joinedRoomCount, setJoinedRoomCount] = useState(0);
   const [postsLoading, setPostsLoading] = useState(true);
   const [postsError, setPostsError] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
 
   const userId = user?.id;
   useEffect(() => {
@@ -117,6 +123,7 @@ export default function ProfilePage() {
             id: p.id,
             roomId: p.roomSlug,
             room: p.room,
+            roomUuid: p.roomUuid,
             time: timeAgo(p.createdAt),
             createdAt: p.createdAt,
             content: p.content,
@@ -130,6 +137,7 @@ export default function ProfilePage() {
             postId: c.postId,
             roomId: c.roomSlug,
             room: c.room,
+            roomUuid: c.roomUuid,
             time: timeAgo(c.createdAt),
             createdAt: c.createdAt,
             content: c.content,
@@ -151,6 +159,68 @@ export default function ProfilePage() {
 
     return () => controller.abort();
   }, [userId]);
+
+  const sumReactions = (list: { count: number }[]) =>
+  list.reduce((total, r) => total + r.count, 0);
+
+  function showToast(message: string) {
+    setToast(message);
+    setTimeout(() => setToast(null), 3000);
+  }
+
+  async function toggleReaction(
+    target: {
+      kind: "post" | "comment";
+      id: string;
+      roomUuid: string;
+      rootPostId?: string; // ใช้กับคอมเมนต์เท่านั้น
+    },
+    emoji: string,
+  ): Promise<boolean> {
+    try {
+      const res = await fetch("/api/reactions/toggle", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          roomId: target.roomUuid,
+          messageId: target.id,
+          ...(target.kind === "comment" ? { postId: target.rootPostId } : {}),
+          emoji,
+        }),
+      });
+      const json = (await res.json()) as
+        | { ok: true; data: { messageId: string; reactions: ReactionItem[] } }
+        | { ok: false; error: string };
+
+      if (!res.ok || !json.ok) {
+        showToast(!json.ok ? json.error : "กดรีแอคชันไม่สำเร็จ");
+        return false;
+      }
+
+      const next = json.data.reactions;
+      const prev =
+        (target.kind === "post" ? myPosts : myComments).find(
+          (x) => x.id === target.id,
+        )?.reactions ?? [];
+
+      // ตัวเลขรวมที่หัวโปรไฟล์ขยับตามจำนวนที่เปลี่ยนจริง
+      setReactionCount((c) => Math.max(0, c + sumReactions(next) - sumReactions(prev)));
+
+      if (target.kind === "post") {
+        setMyPosts((list) =>
+          list.map((p) => (p.id === target.id ? { ...p, reactions: next } : p)),
+        );
+      } else {
+        setMyComments((list) =>
+          list.map((c) => (c.id === target.id ? { ...c, reactions: next } : c)),
+        );
+      }
+      return true;
+    } catch {
+      showToast("กดรีแอคชันไม่สำเร็จ ลองใหม่อีกครั้ง");
+      return false;
+    }
+  }
 
   return (
     <div className="flex flex-1 flex-col">
@@ -274,7 +344,14 @@ export default function ProfilePage() {
                 <EmptyNote icon="pencil" title="ยังไม่มีกระทู้" />
               )}
               {myPosts.map((p) => (
-                <PostCard key={p.id} {...p} timeBeside />
+                <PostCard
+                  key={p.id}
+                  {...p}
+                  timeBeside
+                  onToggleReaction={(emoji) =>
+                    toggleReaction({ kind: "post", id: p.id, roomUuid: p.roomUuid }, emoji)
+                  }
+                />
               ))}
             </>
           )}
@@ -304,11 +381,26 @@ export default function ProfilePage() {
                   replyCount={c.replyCount}
                   reactions={c.reactions}
                   timeBeside
+                  onToggleReaction={(emoji) =>
+                    toggleReaction(
+                      { kind: "comment", id: c.id, roomUuid: c.roomUuid, rootPostId: c.postId },
+                      emoji,
+                    )
+                  }
                 />
               ))}
             </>
           )}
         </div>
+        {toast && (
+          <div
+            role="status"
+            aria-live="polite"
+            className="fixed bottom-6 right-6 z-50 rounded-xl border-[1.5px] border-ink bg-ink px-4 py-3 text-sm text-paper shadow-sticker"
+          >
+            {toast}
+          </div>
+        )}
       </main>
     </div>
   );
