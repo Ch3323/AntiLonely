@@ -145,7 +145,6 @@ export default function ProfilePage() {
   return (
     <div className="flex flex-1 flex-col">
       <Header
-        notifications={currentUser.notifications}
         rooms={myRooms}
         alias={currentUser.alias}
       />

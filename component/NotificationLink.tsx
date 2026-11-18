@@ -1,27 +1,49 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useSyncExternalStore } from "react";
 import { authClient } from "@/lib/auth-client";
 import Icon from "@/component/Icon";
 import LinkPending from "@/component/LinkPending";
 import NotificationBadge from "@/component/NotificationBadge";
 import { usePageSignedIn } from "@/component/RoomMembership";
+import {
+  getUnreadCountSnapshot,
+  setUnreadCountSnapshot,
+  subscribeUnreadCount,
+  syncServerUnreadCount,
+} from "@/lib/notification-count-store";
 import { primaryButtonClass } from "@/lib/styles";
 
 const REFRESH_MS = 15000;
 
 // The header's "โนติ" bell. The number always comes from the database through
-// /api/notifications/unread-count, so every page shows the same figure. The
-// `count` prop is only a stand-in until the first answer arrives.
-export default function NotificationLink({ count }: { count: number }) {
+// /api/notifications/unread-count, so every page shows the same figure. When
+// the server already fetched `count` for the current page, avoid immediately
+// re-fetching on mount; poll and listen for local updates instead.
+export default function NotificationLink({ count }: { count?: number }) {
   const fromPage = usePageSignedIn();
   const { data: session, isPending } = authClient.useSession();
   const signedIn = fromPage ?? (isPending ? null : session !== null);
   const userId = session?.user?.id;
-  const [live, setLive] = useState<number | null>(null);
+  const sharedCount = useSyncExternalStore(
+    subscribeUnreadCount,
+    getUnreadCountSnapshot,
+    () => count ?? null
+  );
+  const shownBeforeRef = useRef(false);
+  const prevCountRef = useRef<number | undefined>(undefined);
 
   useEffect(() => {
+    const { shouldFetchInitial } = syncServerUnreadCount({
+      signedIn,
+      count,
+      shownBefore: shownBeforeRef.current,
+      prevCount: prevCountRef.current,
+    });
+    shownBeforeRef.current = true;
+    prevCountRef.current = count;
+
     if (!userId) return;
     let cancelled = false;
 
@@ -30,14 +52,16 @@ export default function NotificationLink({ count }: { count: number }) {
         .then((res) => (res.ok ? res.json() : null))
         .then((data) => {
           if (!cancelled && data && typeof data.count === "number") {
-            setLive(data.count);
+            setUnreadCountSnapshot(data.count);
           }
         })
         .catch(() => {
           // keep the last number
         });
 
-    void load();
+    if (shouldFetchInitial) {
+      void load();
+    }
 
     const onVisible = () => {
       if (document.visibilityState === "visible") void load();
@@ -54,13 +78,11 @@ export default function NotificationLink({ count }: { count: number }) {
       window.removeEventListener("notifications:changed", onChanged);
       clearInterval(timer);
     };
-  }, [userId]);
+  }, [signedIn, userId, count]);
 
   if (signedIn === false) return null;
 
-  // Pages that don't know the real number pass a stand-in (profile still
-  // passes a mock), so show 0 until the database answers.
-  const shown = live ?? (fromPage == null ? 0 : count);
+  const shown = sharedCount ?? count ?? 0;
 
   return (
     <Link

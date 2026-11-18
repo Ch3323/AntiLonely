@@ -1,8 +1,7 @@
 import { Suspense } from "react";
 import { connection } from "next/server";
 import { AdminSkeleton } from "@/component/PageSkeletons";
-import { headers } from "next/headers";
-import { auth } from "@/lib/auth";
+import { getViewerSession } from "@/lib/server-action-helpers";
 import { prisma } from "@/lib/prisma";
 import AdminRooms from "@/component/admin/AdminRooms";
 
@@ -19,9 +18,7 @@ export default function AdminRoomsPage() {
 async function AdminRoomsData() {
   await connection();
 
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  });
+  const session = await getViewerSession();
 
   const role = session?.user.role;
 

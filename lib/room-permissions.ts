@@ -1,6 +1,17 @@
 import { prisma } from "@/lib/prisma";
+import {
+  canManageRoom,
+  canModerateRoom,
+  resolveRoomRoleFromRecords,
+  type RoomRole,
+} from "./room-role";
 
-export type RoomRole = "owner" | "moderator";
+export {
+  canManageRoom,
+  canModerateRoom,
+  resolveRoomRoleFromRecords,
+  type RoomRole,
+};
 
 // The role someone holds in a room, or null for ordinary members and people
 // outside it. The creator counts as owner even if their membership row is
@@ -19,19 +30,9 @@ export async function getRoomRole(
       select: { role: true, status: true },
     }),
   ]);
-  if (room?.creatorId === userId) return "owner";
-  if (membership?.status !== "active") return null;
-  return membership.role === "owner" || membership.role === "moderator"
-    ? membership.role
-    : null;
-}
-
-// Owners and moderators can remove other people's posts and comments.
-export function canModerateRoom(role: RoomRole | null): boolean {
-  return role !== null;
-}
-
-// Only the owner changes the room itself, removes members or deletes it.
-export function canManageRoom(role: RoomRole | null): boolean {
-  return role === "owner";
+  return resolveRoomRoleFromRecords({
+    roomCreatorId: room?.creatorId,
+    userId,
+    membership,
+  });
 }

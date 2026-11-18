@@ -72,7 +72,7 @@ export default function PostThreadPage(props: PostThreadPageProps) {
     <Suspense
       fallback={
         <div className="min-h-screen flex flex-col">
-          <Header notifications={0} rooms={[]} alias="ผู้เยี่ยมชม" />
+          <Header rooms={[]} alias="ผู้เยี่ยมชม" />
           <PostThreadSkeleton />
         </div>
       }

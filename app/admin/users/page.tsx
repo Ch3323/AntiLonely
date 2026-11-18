@@ -1,9 +1,8 @@
 import { Suspense } from "react";
 import { connection } from "next/server";
-import { headers } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 import { AdminSkeleton } from "@/component/PageSkeletons";
-import { auth } from "@/lib/auth";
+import { getViewerSession } from "@/lib/server-action-helpers";
 import { prisma } from "@/lib/prisma";
 import { resolveAuthorAlias } from "@/lib/room-board";
 import { maskEmail } from "@/lib/sanctions";
@@ -22,9 +21,7 @@ export default function AdminUsersPage() {
 async function AdminUsersData() {
   await connection();
 
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  });
+  const session = await getViewerSession();
   if (!session) redirect("/login");
 
   const role = session.user.role;

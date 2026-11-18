@@ -42,12 +42,38 @@ export type HomeData = {
 
 // Everything the home page shows, read from the database for this request.
 export async function getHomeData(): Promise<HomeData> {
-  const viewer = await getViewerUser();
   const now = Date.now();
   // A post is a top-level message; replies have a parent.
   const visiblePost = { status: "visible", parentId: null } as const;
 
-  const [roomRows, postsTodayRows, memberships, notifications] =
+  const viewerScopedPromise = getViewerUser().then(async (viewer) => {
+    if (!viewer) {
+      return {
+        viewer: null,
+        memberships: [] as { roomId: string }[],
+        notifications: 0,
+      };
+    }
+
+    const [memberships, notifications] = await Promise.all([
+      prisma.roomMember.findMany({
+        where: {
+          userId: viewer.id,
+          status: "active",
+          room: { status: "active" },
+        },
+        orderBy: { joinedAt: "asc" },
+        select: { roomId: true },
+      }),
+      prisma.notification.count({
+        where: { userId: viewer.id, isRead: false },
+      }),
+    ]);
+
+    return { viewer, memberships, notifications };
+  });
+
+  const [roomRows, postsTodayRows, { viewer, memberships, notifications }] =
     await Promise.all([
       prisma.room.findMany({
         where: { status: "active" },
@@ -76,22 +102,7 @@ export async function getHomeData(): Promise<HomeData> {
         },
         _count: { _all: true },
       }),
-      viewer
-        ? prisma.roomMember.findMany({
-            where: {
-              userId: viewer.id,
-              status: "active",
-              room: { status: "active" },
-            },
-            orderBy: { joinedAt: "asc" },
-            select: { roomId: true },
-          })
-        : [],
-      viewer
-        ? prisma.notification.count({
-            where: { userId: viewer.id, isRead: false },
-          })
-        : 0,
+      viewerScopedPromise,
     ]);
 
   const postsToday = new Map(
