@@ -2,9 +2,8 @@ import { Suspense } from "react";
 import { connection } from "next/server";
 import { AdminSkeleton } from "@/component/PageSkeletons";
 import { prisma } from "@/lib/prisma";
-import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { auth } from "@/lib/auth";
+import { getViewerSession } from "@/lib/server-action-helpers";
 import { buildDashboardActivities } from "@/lib/admin-logs";
 import { fetchAdminLogSources } from "@/lib/admin-logs-server";
 import AdminDashboard from "@/component/admin/AdminDashboard";
@@ -68,9 +67,7 @@ async function AdminDashboardData() {
   await connection();
 
     // 1. ตรวจสอบ Session
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  });
+  const session = await getViewerSession();
 
   // ถ้าไม่ได้ Login ให้กลับไปหน้า Login
   if (!session) {

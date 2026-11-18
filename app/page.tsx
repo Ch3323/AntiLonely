@@ -27,7 +27,7 @@ async function HomeContent() {
       <HomeAutoRefresh topic={getLobbyLiveTopic()} />
       <div className="flex flex-1 flex-col">
         <Header
-          notifications={viewer?.notifications ?? 0}
+          notifications={viewer?.notifications}
           rooms={myRooms}
           alias={viewer?.alias ?? ""}
         />
@@ -47,7 +47,7 @@ export default function Home() {
     <Suspense
       fallback={
         <div className="flex flex-1 flex-col">
-          <Header notifications={0} rooms={[]} alias="" />
+          <Header rooms={[]} alias="" />
           <HomeSkeleton />
         </div>
       }

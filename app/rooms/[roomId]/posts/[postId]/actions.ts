@@ -3,7 +3,11 @@
 import { revalidatePath } from 'next/cache';
 import { signalRoomChange, signalUserChange } from '@/lib/room-live-notify';
 import { prisma } from '@/lib/prisma';
-import { canModerateRoom, getRoomRole } from '@/lib/room-permissions';
+import {
+  canModerateRoom,
+  getRoomRole,
+  resolveRoomRoleFromRecords,
+} from '@/lib/room-permissions';
 import { toggleMessageReaction } from '@/lib/reaction-service';
 import {
   formatReportReason,
@@ -218,6 +222,7 @@ export async function getPostThreadData(
         status: true,
         isLocked: true,
         passwordHash: true,
+        creatorId: true,
       },
     }),
     getViewerUser(),
@@ -227,74 +232,109 @@ export async function getPostThreadData(
     return null;
   }
 
-  const [rootPost, viewerMembership, myMemberships, unreadNotifications] =
-    await Promise.all([
-      prisma.message.findFirst({
-        where: {
-          id: normalizedPostId,
-          roomId: roomRecord.id,
-          parentId: null,
-          status: 'visible',
-        },
-        include: {
-          author: {
-            select: {
-              id: true,
-              username: true,
-              displayUsername: true,
-              name: true,
-              image: true,
-            },
-          },
-          reactions: {
-            orderBy: { createdAt: 'asc' },
-            select: {
-              emojiType: true,
-              userId: true,
-            },
+  const isPrivate = Boolean(roomRecord.passwordHash);
+  const fetchReplyRows = () =>
+    prisma.message.findMany({
+      where: {
+        roomId: roomRecord.id,
+        parentId: { not: null },
+        status: 'visible',
+      },
+      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+      include: {
+        author: {
+          select: {
+            id: true,
+            username: true,
+            displayUsername: true,
+            name: true,
+            image: true,
           },
         },
-      }),
-      viewer
-        ? prisma.roomMember.findUnique({
-            where: {
-              userId_roomId: {
-                userId: viewer.id,
-                roomId: roomRecord.id,
+        reactions: {
+          orderBy: { createdAt: 'asc' },
+          select: {
+            emojiType: true,
+            userId: true,
+          },
+        },
+      },
+    });
+
+  const [
+    rootPost,
+    viewerMembership,
+    myMemberships,
+    unreadNotifications,
+    prefetchedReplyRows,
+  ] = await Promise.all([
+    prisma.message.findFirst({
+      where: {
+        id: normalizedPostId,
+        roomId: roomRecord.id,
+        parentId: null,
+        status: 'visible',
+      },
+      include: {
+        author: {
+          select: {
+            id: true,
+            username: true,
+            displayUsername: true,
+            name: true,
+            image: true,
+          },
+        },
+        reactions: {
+          orderBy: { createdAt: 'asc' },
+          select: {
+            emojiType: true,
+            userId: true,
+          },
+        },
+      },
+    }),
+    viewer
+      ? prisma.roomMember.findUnique({
+          where: {
+            userId_roomId: {
+              userId: viewer.id,
+              roomId: roomRecord.id,
+            },
+          },
+          select: { status: true, role: true },
+        })
+      : Promise.resolve(null),
+    viewer
+      ? prisma.roomMember.findMany({
+          where: {
+            userId: viewer.id,
+            status: 'active',
+            room: { status: 'active' },
+          },
+          orderBy: { joinedAt: 'desc' },
+          include: {
+            room: {
+              select: {
+                id: true,
+                slug: true,
+                name: true,
+                passwordHash: true,
               },
             },
-            select: { status: true },
-          })
-        : Promise.resolve(null),
-      viewer
-        ? prisma.roomMember.findMany({
-            where: {
-              userId: viewer.id,
-              status: 'active',
-              room: { status: 'active' },
-            },
-            orderBy: { joinedAt: 'desc' },
-            include: {
-              room: {
-                select: {
-                  id: true,
-                  slug: true,
-                  name: true,
-                  passwordHash: true,
-                },
-              },
-            },
-          })
-        : Promise.resolve([]),
-      viewer
-        ? prisma.notification.count({
-            where: {
-              userId: viewer.id,
-              isRead: false,
-            },
-          })
-        : Promise.resolve(0),
-    ]);
+          },
+        })
+      : Promise.resolve([]),
+    viewer
+      ? prisma.notification.count({
+          where: {
+            userId: viewer.id,
+            isRead: false,
+          },
+        })
+      : Promise.resolve(0),
+    isPrivate ? Promise.resolve(null) : fetchReplyRows(),
+  ]);
 
   if (!rootPost) {
     return null;
@@ -302,7 +342,6 @@ export async function getPostThreadData(
 
   const memberStatus =
     (viewerMembership?.status as DbMemberStatus | undefined) ?? null;
-  const isPrivate = Boolean(roomRecord.passwordHash);
 
   const myRooms: MyRoom[] = myMemberships.map((m) => ({
     id: m.room.id,
@@ -354,32 +393,7 @@ export async function getPostThreadData(
     };
   }
 
-  const replyRows = await prisma.message.findMany({
-    where: {
-      roomId: roomRecord.id,
-      parentId: { not: null },
-      status: 'visible',
-    },
-    orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
-    include: {
-      author: {
-        select: {
-          id: true,
-          username: true,
-          displayUsername: true,
-          name: true,
-          image: true,
-        },
-      },
-      reactions: {
-        orderBy: { createdAt: 'asc' },
-        select: {
-          emojiType: true,
-          userId: true,
-        },
-      },
-    },
-  });
+  const replyRows = prefetchedReplyRows ?? await fetchReplyRows();
 
   const thread = buildPostThreadFromMessages({
     room: { slug: roomRecord.slug, name: roomRecord.name },
@@ -415,7 +429,11 @@ export async function getPostThreadData(
     canComment,
     canReact,
     canModerate: canModerateRoom(
-      viewer ? await getRoomRole(roomRecord.id, viewer.id) : null
+      resolveRoomRoleFromRecords({
+        roomCreatorId: roomRecord.creatorId,
+        userId: viewer?.id,
+        membership: viewerMembership,
+      })
     ),
     thread,
     currentUser,

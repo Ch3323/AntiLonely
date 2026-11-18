@@ -1,3 +1,4 @@
+import { cache } from 'react';
 import { headers } from 'next/headers';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
@@ -34,15 +35,46 @@ export async function runSafeMutation<T>(
   }
 }
 
-export async function getViewerUser() {
+export const getViewerSession = cache(async () => {
   try {
-    const session = await auth.api.getSession({
+    return await auth.api.getSession({
       headers: await headers(),
     });
-    const userId = session?.user?.id;
+  } catch {
+    return null;
+  }
+});
+
+export const getViewerUser = cache(async () => {
+  try {
+    const session = await getViewerSession();
+    const sessionUser = session?.user;
+    const userId = sessionUser?.id;
     if (!userId || !isUuid(userId)) return null;
 
     const now = new Date();
+    const sanctionWhere = {
+      userId,
+      type: { in: ['suspension', 'ban'] as ('suspension' | 'ban')[] },
+      liftedAt: null,
+      OR: [{ endAt: null }, { endAt: { gt: now } }],
+    };
+
+    if (typeof sessionUser.username === 'string' && sessionUser.username.length > 0) {
+      const activeSanction = await prisma.sanction.findFirst({
+        where: sanctionWhere,
+        select: { id: true },
+      });
+      if (activeSanction) return null;
+
+      return {
+        id: userId,
+        username: sessionUser.username,
+        displayUsername: sessionUser.displayUsername ?? null,
+        name: sessionUser.name,
+      };
+    }
+
     const [user, activeSanction] = await Promise.all([
       prisma.user.findUnique({
         where: { id: userId },
@@ -54,12 +86,7 @@ export async function getViewerUser() {
         },
       }),
       prisma.sanction.findFirst({
-        where: {
-          userId,
-          type: { in: ['suspension', 'ban'] },
-          liftedAt: null,
-          OR: [{ endAt: null }, { endAt: { gt: now } }],
-        },
+        where: sanctionWhere,
         select: { id: true },
       }),
     ]);
@@ -72,4 +99,4 @@ export async function getViewerUser() {
   } catch {
     return null;
   }
-}
+});

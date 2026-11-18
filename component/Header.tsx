@@ -14,7 +14,7 @@ export default function Header({
   rooms = [],
   alias = "",
 }: {
-  notifications: number;
+  notifications?: number;
   rooms?: MyRoom[];
   alias?: string;
 }) {

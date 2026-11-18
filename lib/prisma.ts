@@ -17,10 +17,15 @@ function createPrismaClient() {
   }
   // DATABASE_URL is Supabase's transaction pooler (port 6543).
   const adapter =
-    globalForPrisma.prismaAdapter ?? new PrismaPg({ connectionString });
-  if (process.env.NODE_ENV !== "production") {
-    globalForPrisma.prismaAdapter = adapter;
-  }
+    globalForPrisma.prismaAdapter ??
+    new PrismaPg({
+      connectionString,
+      max: 10,
+      idleTimeoutMillis: 60_000,
+      connectionTimeoutMillis: 10_000,
+      keepAlive: true,
+    });
+  globalForPrisma.prismaAdapter = adapter;
   return new PrismaClient({ adapter });
 }
 
@@ -29,4 +34,4 @@ export const prisma =
     ? globalForPrisma.prisma
     : createPrismaClient();
 
-if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
+globalForPrisma.prisma = prisma;

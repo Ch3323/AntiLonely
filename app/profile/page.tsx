@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { authClient } from "@/lib/auth-client";
 import EditProfileButton from "@/component/EditProfileButton";
 import EmptyNote from "@/component/EmptyNote";
@@ -9,6 +8,8 @@ import Icon from "@/component/Icon";
 import { useJoinedCount } from "@/component/useJoinedCount";
 import PostCard from "@/component/PostCard";
 import Tape from "@/component/Tape";
+import { useEffect, useState } from "react";
+import Link from "next/link";
 import {
   highlightClass,
   indexCardClass,
@@ -18,23 +19,61 @@ import {
 } from "@/lib/styles";
 
 type MyPost = {
-  id: number;
+  id: string;
+  roomId: string;
   room: string;
   time: string;
+  createdAt: string;
   content: string;
   replyCount: number;
 };
 
-type Tab = "posts" | "comments" | "saved";
+type ApiPost = {
+  id: string;
+  room: string;
+  roomSlug: string;
+  content: string;
+  createdAt: string;
+  replyCount: number;
+};
+
+type MyComment = {
+  id: string;
+  postId: string;
+  roomId: string;
+  room: string;
+  time: string;
+  createdAt: string;
+  content: string;
+  replyCount: number;
+};
+
+type ApiComment = {
+  id: string;
+  postId: string;
+  room: string;
+  roomSlug: string;
+  content: string;
+  createdAt: string;
+  replyCount: number;
+};
+
+type Tab = "posts" | "comments";
 
 const tabs: { key: Tab; label: string }[] = [
   { key: "posts", label: "กระทู้ของฉัน" },
   { key: "comments", label: "ความคิดเห็น" },
-  { key: "saved", label: "ที่บันทึกไว้" },
 ];
 
-// เริ่มต้นยังไม่มีโพสต์
-const myPosts: MyPost[] = [];
+function timeAgo(iso: string): string {
+  const diff = Math.max(0, Date.now() - new Date(iso).getTime());
+  const minutes = Math.floor(diff / 60000);
+  if (minutes < 1) return "เมื่อสักครู่";
+  if (minutes < 60) return `${minutes} นาที ที่แล้ว`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours} ชั่วโมง ที่แล้ว`;
+  return `${Math.floor(hours / 24)} วัน ที่แล้ว`;
+}
 
 export default function ProfilePage() {
   // จำว่ากำลังเลือกแท็บไหนอยู่
@@ -45,11 +84,76 @@ export default function ProfilePage() {
   const user = session?.user;
   const joinedRoomCount = useJoinedCount(user?.id);
 
+  const [myPosts, setMyPosts] = useState<MyPost[]>([]);
+  const [myComments, setMyComments] = useState<MyComment[]>([]);
+  const [reactionCount, setReactionCount] = useState(0);
+  const [postsLoading, setPostsLoading] = useState(true);
+  const [postsError, setPostsError] = useState(false);
+
+  const userId = user?.id;
+  useEffect(() => {
+    if (!userId) return;
+    const controller = new AbortController();
+
+    fetch("/api/me/posts", { signal: controller.signal, cache: "no-store" })
+      .then((r) => {
+        if (!r.ok) throw new Error(String(r.status));
+        return r.json() as Promise<{ 
+          posts: ApiPost[]; 
+          comments: ApiComment[];
+          reactionCount: number
+        }>;
+      })
+      .then((data) => {
+        setMyPosts(
+          data.posts.map((p) => ({
+            id: p.id,
+            roomId: p.roomSlug,
+            room: p.room,
+            time: timeAgo(p.createdAt),
+            createdAt: p.createdAt,
+            content: p.content,
+            replyCount: p.replyCount,
+          })),
+        );
+        setMyComments(
+          data.comments.map((c) => ({
+            id: c.id,
+            postId: c.postId,
+            roomId: c.roomSlug,
+            room: c.room,
+            time: timeAgo(c.createdAt),
+            createdAt: c.createdAt,
+            content: c.content,
+            replyCount: c.replyCount,
+          })),
+        );
+        setReactionCount(data.reactionCount);
+        setPostsError(false);
+      })
+      .catch((e) => {
+        if (e.name !== "AbortError") setPostsError(true);
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setPostsLoading(false);
+      });
+
+    return () => controller.abort();
+  }, [userId]);
+
   return (
     <div className="flex flex-1 flex-col">
-      <Header notifications={0} rooms={[]} alias="" />
+      <Header rooms={[]} alias="" />
 
       <main className="mx-auto flex w-full max-w-4xl flex-col gap-6 px-4 py-6 sm:py-8">
+        <Link
+          href="/"
+          className="inline-flex items-center gap-1.5 text-sm font-medium text-ink-soft hover:text-kmutt-orange-dark hover:underline"
+        >
+          <span aria-hidden="true">←</span>
+          <span>กลับไปหน้าหลัก</span>
+        </Link>
+
         {/* โน้ตสีพีชบอกว่าหน้านี้ส่วนตัว */}
         <div className="flex items-start gap-2 rounded-lg border-[1.5px] border-dashed border-peach-edge bg-peach px-4 py-3 text-sm text-ink">
           <Icon name="lock" className="mt-0.5 size-4 text-kmutt-orange-dark" />
@@ -96,11 +200,11 @@ export default function ProfilePage() {
               <p className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
                 <span className="flex items-center gap-1">
                   <Icon name="message" className="size-4 text-ink-soft" />
-                  <b>{myPosts.length}</b> กระทู้
+                  <b>{postsLoading ? "-" : myPosts.length}</b> กระทู้
                 </span>
                 <span className="flex items-center gap-1">
                   <Icon name="heart" className="size-4 text-ink-soft" />
-                  <b>0</b> รีแอคชัน
+                  <b>{postsLoading ? "-" : reactionCount}</b> รีแอคชัน
                 </span>
                 <span className="flex items-center gap-1">
                   <Icon name="users" className="size-4 text-ink-soft" />
@@ -147,21 +251,50 @@ export default function ProfilePage() {
         >
           {activeTab === "posts" && (
             <>
-              {myPosts.length === 0 && (
+              {postsLoading && (
+                <div className={`h-28 rounded-lg ${skeletonClass}`}>
+                  <span className="sr-only">กำลังโหลดกระทู้…</span>
+                </div>
+              )}
+              {!postsLoading && postsError && (
+                <EmptyNote icon="pencil" title="โหลดกระทู้ไม่สำเร็จ ลองรีเฟรชอีกครั้ง" />
+              )}
+              {!postsLoading && !postsError && myPosts.length === 0 && (
                 <EmptyNote icon="pencil" title="ยังไม่มีกระทู้" />
               )}
               {myPosts.map((p) => (
-                <PostCard key={p.id} {...p} />
+                <PostCard key={p.id} {...p} timeBeside />
               ))}
             </>
           )}
 
           {activeTab === "comments" && (
-            <EmptyNote icon="message" title="ยังไม่มีความคิดเห็น" />
-          )}
-
-          {activeTab === "saved" && (
-            <EmptyNote icon="bookmark" title="ยังไม่มีที่บันทึกไว้" />
+            <>
+              {postsLoading && (
+                <div className={`h-28 rounded-lg ${skeletonClass}`}>
+                  <span className="sr-only">กำลังโหลดความคิดเห็น…</span>
+                </div>
+              )}
+              {!postsLoading && postsError && (
+                <EmptyNote icon="message" title="โหลดความคิดเห็นไม่สำเร็จ ลองรีเฟรชอีกครั้ง" />
+              )}
+              {!postsLoading && !postsError && myComments.length === 0 && (
+                <EmptyNote icon="message" title="ยังไม่มีความคิดเห็น" />
+              )}
+              {myComments.map((c) => (
+                <PostCard
+                  key={c.id}
+                  id={c.postId}
+                  roomId={c.roomId}
+                  room={c.room}
+                  time={c.time}
+                  createdAt={c.createdAt}
+                  content={c.content}
+                  replyCount={c.replyCount}
+                  timeBeside
+                />
+              ))}
+            </>
           )}
         </div>
       </main>
