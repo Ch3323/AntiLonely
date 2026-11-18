@@ -2,15 +2,15 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import type { ReportReason, ReportTargetType } from '@/types/post-thread';
-import Icon from '@/component/Icon';
-import Paper from '@/component/Paper';
+import Icon from '@/component/ui/Icon';
+import Paper from '@/component/ui/Paper';
 import {
   choiceClass,
   inputClass,
   primaryButtonClass,
   radioClass,
   secondaryButtonClass,
-} from '@/lib/styles';
+} from '@/lib/shared/styles';
 
 interface ReportModalProps {
   isOpen: boolean;

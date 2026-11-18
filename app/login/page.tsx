@@ -1,5 +1,5 @@
-import LoginForm from "@/component/LoginForm";
-import SignedInRedirect from "@/component/SignedInRedirect";
+import LoginForm from "@/component/auth/LoginForm";
+import SignedInRedirect from "@/component/auth/SignedInRedirect";
 
 export default function LoginPage() {
   return (

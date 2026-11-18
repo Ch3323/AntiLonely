@@ -3,9 +3,9 @@
 
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
-import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
-import { signalMessagesChanged } from "@/lib/room-live-notify";
+import { auth } from "@/lib/auth/auth";
+import { prisma } from "@/lib/shared/prisma";
+import { signalMessagesChanged } from "@/lib/rooms/room-live-notify";
 
 export type ReportActionResult =
   | { ok: true; affected: number }

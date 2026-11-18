@@ -1,8 +1,8 @@
 'use client';
 
 import React, { useState } from 'react';
-import Icon from '@/component/Icon';
-import { authClient } from '@/lib/auth-client';
+import Icon from '@/component/ui/Icon';
+import { authClient } from '@/lib/auth/auth-client';
 
 import {
   avatarClass,
@@ -11,7 +11,7 @@ import {
   inputClass,
   primaryButtonClass,
   secondaryButtonClass,
-} from '@/lib/styles';
+} from '@/lib/shared/styles';
 
 interface ReplyComposerProps {
   currentUserName: string;

@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import Modal from "@/component/Modal";
-import Paper from "@/component/Paper";
+import Modal from "@/component/ui/Modal";
+import Paper from "@/component/ui/Paper";
 import {
   checkboxClass,
   FormError,
@@ -11,7 +11,7 @@ import {
   SanctionUserCard,
   type SanctionTarget,
 } from "@/component/admin/SanctionParts";
-import { suspendUser, type SanctionResult } from "@/lib/sanction-actions";
+import { suspendUser, type SanctionResult } from "@/lib/admin/sanction-actions";
 import {
   disabledButtonClass,
   fieldFrameClass,
@@ -20,7 +20,7 @@ import {
   primaryButtonClass,
   radioClass,
   secondaryButtonClass,
-} from "@/lib/styles";
+} from "@/lib/shared/styles";
 import {
   addDuration,
   dateInputToEnd,
@@ -31,7 +31,7 @@ import {
   suspensionEndsWithinLimit,
   toDateInputValue,
   type DurationUnit,
-} from "@/lib/sanctions";
+} from "@/lib/admin/sanctions";
 
 type Preset = (typeof SUSPENSION_PRESET_DAYS)[number] | "custom";
 type CustomMode = "amount" | "date";

@@ -1,0 +1,64 @@
+import Link from "next/link";
+import LinkPending from "@/component/ui/LinkPending";
+import Icon from "@/component/ui/Icon";
+import Paper from "@/component/ui/Paper";
+import { highlightClass } from "@/lib/shared/styles";
+
+// A little stack of paper taped onto the notebook background, with the
+// title highlighted.
+export default function AuthCard({
+  titleId,
+  title,
+  subtitle,
+  children,
+}: {
+  titleId: string;
+  title: string;
+  subtitle: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <Paper className="w-full max-w-sm">
+      <p className="flex items-center font-display text-lg font-semibold">
+        Anti<span className="text-kmutt-orange">Lonely</span>
+        <Icon
+          name="heart"
+          className="ml-0.5 size-3.5 -translate-y-1.5 rotate-12 fill-current text-kmutt-orange"
+        />
+      </p>
+      <h1 id={titleId} className="mt-4 font-display text-[1.75rem] leading-tight font-semibold">
+        <span className={highlightClass}>{title}</span>
+      </h1>
+      <p className="mt-2 text-sm text-ink-soft">{subtitle}</p>
+      <div className="mt-6">{children}</div>
+    </Paper>
+  );
+}
+
+// Switches between the auth forms (log in, sign up, forgot password).
+// Inside the modal, replace history so one Back or close returns to the page
+// underneath. On the full page, do a normal load: a client-side Link would
+// be intercepted and open a modal.
+export function AuthLink({
+  href,
+  inModal,
+  className = "font-semibold text-kmutt-orange-dark underline-offset-4 hover:underline",
+  children,
+}: {
+  href: string;
+  inModal: boolean;
+  className?: string;
+  children: React.ReactNode;
+}) {
+  return inModal ? (
+    <Link href={href} replace className={`relative ${className}`}>
+      {children}
+      {/* The next form may take a moment to load the first time. */}
+      <LinkPending className="-right-7 top-1/2 -translate-y-1/2" />
+    </Link>
+  ) : (
+    <a href={href} className={className}>
+      {children}
+    </a>
+  );
+}

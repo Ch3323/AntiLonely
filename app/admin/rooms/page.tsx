@@ -1,8 +1,8 @@
 import { Suspense } from "react";
 import { connection } from "next/server";
-import { AdminSkeleton } from "@/component/PageSkeletons";
-import { getViewerSession } from "@/lib/server-action-helpers";
-import { prisma } from "@/lib/prisma";
+import { AdminSkeleton } from "@/component/ui/PageSkeletons";
+import { getViewerSession } from "@/lib/shared/server-action-helpers";
+import { prisma } from "@/lib/shared/prisma";
 import AdminRooms from "@/component/admin/AdminRooms";
 
 export default function AdminRoomsPage() {

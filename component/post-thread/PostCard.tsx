@@ -2,15 +2,15 @@
 
 import React, { memo, useState, useRef, useEffect } from 'react';
 import type { PostThread } from '@/types/post-thread';
-import { formatRelativeTimeThai } from '@/lib/post-thread';
+import { formatRelativeTimeThai } from '@/lib/post-thread/post-thread';
 import { ReactionBar } from './ReactionBar';
-import Icon from '@/component/Icon';
-import Tape from '@/component/Tape';
+import Icon from '@/component/ui/Icon';
+import Tape from '@/component/ui/Tape';
 import {
   avatarClass,
   indexCardClass,
   outlineButtonClass,
-} from '@/lib/styles';
+} from '@/lib/shared/styles';
 
 interface PostCardProps {
   thread: PostThread;

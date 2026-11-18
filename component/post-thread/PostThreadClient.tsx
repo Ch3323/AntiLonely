@@ -31,15 +31,15 @@ import {
   revertEditedCommentContent,
   sortComments,
   TIME_REFRESH_INTERVAL_MS,
-} from '@/lib/post-thread';
-import { syncReactionMutation } from '@/lib/reaction-client';
-import { createPendingLocalChanges, mergeThread } from '@/lib/live-merge';
+} from '@/lib/post-thread/post-thread';
+import { syncReactionMutation } from '@/lib/post-thread/reaction-client';
+import { createPendingLocalChanges, mergeThread } from '@/lib/post-thread/live-merge';
 import {
   collectClientSubtreeIds,
   deleteCommentSubtreeOptimistic,
   removeDeletedIdsFromComments,
-} from '@/lib/post-thread-mapper';
-import { canMemberReactInRoom, type DbMemberStatus } from '@/lib/room-board';
+} from '@/lib/post-thread/post-thread-mapper';
+import { canMemberReactInRoom, type DbMemberStatus } from '@/lib/rooms/room-board';
 import {
   createThreadReply,
   deleteThreadMessage,
@@ -47,7 +47,7 @@ import {
   reportThreadTarget,
   updateThreadMessage,
 } from '@/app/rooms/[roomId]/posts/[postId]/actions';
-import Header from '@/component/Header';
+import Header from '@/component/layout/Header';
 import { PostCard } from './PostCard';
 import { ReplyComposer } from './ReplyComposer';
 import { CommentItem } from './CommentItem';
@@ -57,7 +57,7 @@ import {
   disabledButtonClass,
   indexCardClass,
   outlineButtonClass,
-} from '@/lib/styles';
+} from '@/lib/shared/styles';
 
 interface PostThreadClientProps {
   room: {

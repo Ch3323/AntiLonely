@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import ResetPasswordForm from "@/component/ResetPasswordForm";
+import ResetPasswordForm from "@/component/auth/ResetPasswordForm";
 
 export const metadata: Metadata = {
   title: "ตั้งรหัสผ่านใหม่ | AntiLonely",

@@ -1,28 +1,28 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { signalRoomChange, signalUserChange } from '@/lib/room-live-notify';
-import { prisma } from '@/lib/prisma';
+import { signalRoomChange, signalUserChange } from '@/lib/rooms/room-live-notify';
+import { prisma } from '@/lib/shared/prisma';
 import {
   canModerateRoom,
   getRoomRole,
   resolveRoomRoleFromRecords,
-} from '@/lib/room-permissions';
-import { toggleMessageReaction } from '@/lib/reaction-service';
+} from '@/lib/rooms/room-permissions';
+import { toggleMessageReaction } from '@/lib/post-thread/reaction-service';
 import {
   formatReportReason,
   getViewerUser,
   runSafeMutation,
   VALID_REPORT_REASONS,
   type ActionResult,
-} from '@/lib/server-action-helpers';
+} from '@/lib/shared/server-action-helpers';
 import {
   buildPostThreadFromMessages,
   canMemberCommentInRoom,
   collectSubtreeMessageIds,
   isMessageInPostSubtree,
   validateCommentContent,
-} from '@/lib/post-thread-mapper';
+} from '@/lib/post-thread/post-thread-mapper';
 import {
   canMemberEditPostInRoom,
   canMemberReactInRoom,
@@ -31,8 +31,8 @@ import {
   resolveAuthorAlias,
   resolveRoomLookupTarget,
   type DbMemberStatus,
-} from '@/lib/room-board';
-import { findPostSubtreeIds } from '@/lib/thread-subtree';
+} from '@/lib/rooms/room-board';
+import { findPostSubtreeIds } from '@/lib/post-thread/thread-subtree';
 import type { MyRoom } from '@/types/room';
 import type {
   PostThread,

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import VerifyEmailCard from "@/component/VerifyEmailCard";
+import VerifyEmailCard from "@/component/auth/VerifyEmailCard";
 
 export const metadata: Metadata = {
   title: "ยืนยันอีเมล | AntiLonely",

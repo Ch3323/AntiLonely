@@ -2,22 +2,22 @@
 
 import { refresh, revalidatePath } from "next/cache";
 import { hashPassword, verifyPassword } from "better-auth/crypto";
-import { prisma } from "@/lib/prisma";
-import { signalLobbyChange, signalRoomChange } from "@/lib/room-live-notify";
-import { mapDbMembershipToBoardState, isUuid } from "@/lib/room-board";
-import { validateRoomCreate, type RoomCreateInput } from "@/lib/room-create";
+import { prisma } from "@/lib/shared/prisma";
+import { signalLobbyChange, signalRoomChange } from "@/lib/rooms/room-live-notify";
+import { mapDbMembershipToBoardState, isUuid } from "@/lib/rooms/room-board";
+import { validateRoomCreate, type RoomCreateInput } from "@/lib/rooms/room-create";
 import {
   createAttemptLimiter,
   formatRetryAfter,
   roomPasswordAttemptKey,
   type AttemptLimiter,
-} from "@/lib/room-password-attempts";
-import { resolveUniqueRoomSlug } from "@/lib/room-slug";
+} from "@/lib/rooms/room-password-attempts";
+import { resolveUniqueRoomSlug } from "@/lib/rooms/room-slug";
 import {
   getViewerUser,
   runSafeMutation,
   type ActionResult,
-} from "@/lib/server-action-helpers";
+} from "@/lib/shared/server-action-helpers";
 import type { RoomBoardMembershipState } from "@/types/post-thread";
 
 // One limiter per server process. Kept on globalThis so a development reload

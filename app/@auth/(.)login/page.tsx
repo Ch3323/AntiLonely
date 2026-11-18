@@ -1,5 +1,5 @@
-import LoginForm from "@/component/LoginForm";
-import Modal from "@/component/Modal";
+import LoginForm from "@/component/auth/LoginForm";
+import Modal from "@/component/ui/Modal";
 
 // Intercepts in-app navigation to /login and shows it as a modal.
 // Loading /login directly renders app/login/page.tsx instead.
