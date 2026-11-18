@@ -9,7 +9,6 @@ import Icon from "@/component/Icon";
 import { useJoinedCount } from "@/component/useJoinedCount";
 import PostCard from "@/component/PostCard";
 import Tape from "@/component/Tape";
-import { currentUser, myRooms } from "@/lib/mock";
 import {
   highlightClass,
   indexCardClass,
@@ -48,11 +47,7 @@ export default function ProfilePage() {
 
   return (
     <div className="flex flex-1 flex-col">
-      <Header
-        notifications={currentUser.notifications}
-        rooms={myRooms}
-        alias={currentUser.alias}
-      />
+      <Header notifications={0} rooms={[]} alias="" />
 
       <main className="mx-auto flex w-full max-w-4xl flex-col gap-6 px-4 py-6 sm:py-8">
         {/* โน้ตสีพีชบอกว่าหน้านี้ส่วนตัว */}

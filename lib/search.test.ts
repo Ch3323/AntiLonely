@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import type { Room } from "./mock.ts";
+import type { Room } from "../types/room.ts";
 import { roomMatchesQuery } from "./search.ts";
 
 const games: Room = {

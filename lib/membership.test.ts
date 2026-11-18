@@ -9,7 +9,7 @@ import {
   pickRandomRoom,
   roomsToDiscover,
 } from "./membership.ts";
-import type { MyRoom, Room } from "./mock.ts";
+import type { MyRoom, Room } from "../types/room.ts";
 
 const chat: Room = {
   id: "chat",

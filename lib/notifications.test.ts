@@ -15,7 +15,6 @@ import {
   RECENT_NOTIFICATION_WINDOW_MS,
   MAX_RELATIVE_DAYS,
 } from './notifications.ts';
-import { getMockNotificationsFeed } from './mock/notifications.ts';
 import type { NotificationItem } from '../types/notification.ts';
 
 const baseTime = new Date('2026-10-13T10:00:00.000Z');
@@ -229,46 +228,6 @@ test('groupNotifications sorts unordered items newest first within recent and ea
     grouped.earlier.map((i) => i.id),
     ['newer-earlier', 'older-earlier']
   );
-});
-
-test('getMockNotificationsFeed produces deterministic feed matching mockup layout', () => {
-  const feed = getMockNotificationsFeed(baseTime.getTime());
-  assert.equal(feed.items.length, 6);
-  assert.equal(feed.serverTime, baseTime.toISOString());
-
-  const grouped = groupNotifications(feed.items, baseTime);
-  assert.equal(grouped.recent.length, 3);
-  assert.equal(grouped.earlier.length, 3);
-
-  // Recent items are < 24h (notif-0 is pinned unread important item)
-  assert.deepEqual(
-    grouped.recent.map((item) => item.id),
-    ['notif-0', 'notif-1', 'notif-2']
-  );
-
-  assert.equal(grouped.recent[0].actor.name, 'ฝ่ายดูแลระบบ');
-  assert.equal(grouped.recent[0].actionText, 'ได้ระงับโพสต์ของคุณเนื่องจากได้รับการรายงาน');
-  assert.equal(grouped.recent[0].badge?.text, 'สำคัญ');
-  assert.equal(grouped.recent[0].systemIcon, 'alert');
-
-  // Once notif-0 is marked read, it unpins and returns to chronological order (2m, 5m, 18m)
-  const afterRead = groupNotifications(
-    markNotificationAsRead(feed.items, 'notif-0'),
-    baseTime
-  );
-  assert.deepEqual(
-    afterRead.recent.map((item) => item.id),
-    ['notif-1', 'notif-0', 'notif-2']
-  );
-
-  // Earlier items are >= 24h (notif-6 with shield icon is first)
-  assert.deepEqual(
-    grouped.earlier.map((item) => item.id),
-    ['notif-6', 'notif-4', 'notif-5']
-  );
-
-  assert.equal(grouped.earlier[0].actor.name, 'ฝ่ายดูแลระบบ');
-  assert.equal(grouped.earlier[0].systemIcon, 'shield');
 });
 
 test('mapDbNotificationsToItems enriches notifications linked to a sanction via sanctionId', () => {
