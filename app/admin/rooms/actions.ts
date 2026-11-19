@@ -3,10 +3,10 @@
 
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
-import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
-import { notifyRoomClosed } from "@/lib/report-service";
-import { signalRoomChange } from "@/lib/room-live-notify";
+import { auth } from "@/lib/auth/auth";
+import { prisma } from "@/lib/shared/prisma";
+import { signalRoomChange } from "@/lib/rooms/room-live-notify";
+import { notifyRoomClosed } from "@/lib/rooms/report-service";
 
 async function checkRoomPermission() {
   const session = await auth.api.getSession({

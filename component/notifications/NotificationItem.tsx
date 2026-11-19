@@ -2,8 +2,8 @@
 
 import React from 'react';
 import type { NotificationItem as NotificationItemType } from '@/types/notification';
-import Icon from '@/component/Icon';
-import { formatTimeAgo } from '@/lib/notifications';
+import Icon from '@/component/ui/Icon';
+import { formatTimeAgo } from '@/lib/notifications/notifications';
 
 interface NotificationItemProps {
   notification: NotificationItemType;

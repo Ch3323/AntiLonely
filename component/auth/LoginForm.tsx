@@ -1,0 +1,154 @@
+"use client";
+
+import { useRouter } from "next/navigation";
+import { useLayoutEffect, useRef, useState, useTransition } from "react";
+import AuthCard, { AuthLink } from "@/component/auth/AuthCard";
+import Spinner from "@/component/ui/Spinner";
+import GoogleButton from "@/component/auth/GoogleButton";
+import PasswordInput from "@/component/ui/PasswordInput";
+import { authClient } from "@/lib/auth/auth-client";
+import { authErrorMessage } from "@/lib/auth/auth-errors";
+import { rememberPendingEmail } from "@/lib/auth/pending-email";
+import {
+  alertClass,
+  disabledButtonClass,
+  inputClass,
+  primaryButtonClass,
+} from "@/lib/shared/styles";
+
+export default function LoginForm({ inModal = false }: { inModal?: boolean }) {
+  const router = useRouter();
+  const [pending, setPending] = useState(false);
+  // Signed in: the modal stays busy until the home page has taken over, so
+  // the button doesn't come back to life in between.
+  const [navigating, startNavigation] = useTransition();
+  const busy = pending || navigating;
+  const [error, setError] = useState<string | null>(null);
+  // The password was right but the email isn't verified yet: offer the way
+  // to the page that sends the link again.
+  const [unverified, setUnverified] = useState(false);
+  const formRef = useRef<HTMLFormElement>(null);
+
+  // Next hides this form on close instead of unmounting it. Without this the
+  // next open would still show the last error and the typed password.
+  useLayoutEffect(() => {
+    const form = formRef.current;
+    return () => {
+      form?.reset();
+      setError(null);
+      setUnverified(false);
+      setPending(false);
+    };
+  }, []);
+
+  return (
+    <AuthCard
+      titleId="login-title"
+      title="ดีใจที่กลับมานะ"
+      subtitle="เข้าสู่ระบบแล้วไปคุยกันต่อเลย"
+    >
+      <form
+        ref={formRef}
+        // If this is submitted before the page's script has loaded, the
+        // browser sends it itself: post keeps the password out of the URL.
+        method="post"
+        className="flex flex-col gap-4"
+        onSubmit={async (event) => {
+          event.preventDefault();
+          if (busy) return;
+          const formElement = event.currentTarget;
+          const form = new FormData(formElement);
+          setPending(true);
+          setError(null);
+          setUnverified(false);
+          const email = String(form.get("email")).trim();
+          const { error } = await authClient.signIn.email({
+            email,
+            password: String(form.get("password")),
+          });
+          if (error) {
+            if (error.code === "EMAIL_NOT_VERIFIED") {
+              rememberPendingEmail(email);
+              setUnverified(true);
+            }
+            setError(authErrorMessage(error));
+            setPending(false);
+            return;
+          }
+          // Next keeps this page alive (hidden) after leaving it, so clear the
+          // typed password and the pending state before going.
+          formElement.reset();
+          setPending(false);
+          // Going to / closes the modal; refresh lets server components see the session.
+          startNavigation(() => {
+            router.push("/");
+            router.refresh();
+          });
+        }}
+      >
+        <div className="flex flex-col gap-1">
+          <label htmlFor="login-email" className="text-sm font-semibold">
+            อีเมล
+          </label>
+          <input
+            id="login-email"
+            name="email"
+            type="email"
+            autoComplete="email"
+            placeholder="you@example.com"
+            required
+            className={inputClass}
+          />
+        </div>
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center justify-between">
+            <label htmlFor="login-password" className="text-sm font-semibold">
+              รหัสผ่าน
+            </label>
+            <AuthLink
+              href="/forgot-password"
+              inModal={inModal}
+              className="py-1 text-xs text-ink-soft hover:text-kmutt-orange-dark"
+            >
+              ลืมรหัสผ่าน?
+            </AuthLink>
+          </div>
+          <PasswordInput
+            id="login-password"
+            name="password"
+            autoComplete="current-password"
+            required
+          />
+        </div>
+        {error && (
+          <p role="alert" className={alertClass}>
+            {error}
+            {unverified && (
+              <>
+                {" "}
+                <AuthLink href="/verify-email" inModal={inModal}>
+                  หาอีเมลไม่เจอ? ส่งลิงก์ใหม่
+                </AuthLink>
+              </>
+            )}
+          </p>
+        )}
+        <button
+          type="submit"
+          disabled={busy}
+          className={`flex items-center justify-center gap-2 py-2.5 ${primaryButtonClass} ${disabledButtonClass}`}
+        >
+          {busy && <Spinner />}
+          {busy ? "กำลังเข้าสู่ระบบ…" : "เข้าสู่ระบบ"}
+        </button>
+      </form>
+      <GoogleButton label="เข้าสู่ระบบด้วย Google" />
+      <p className="mt-4 text-center text-sm text-ink-soft">
+        ยังไม่มีบัญชีเหรอ?{" "}
+        <AuthLink href="/signup" inModal={inModal}>
+          สมัครเลย
+        </AuthLink>
+      </p>
+    </AuthCard>
+  );
+}

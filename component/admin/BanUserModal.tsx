@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import Modal from "@/component/Modal";
-import Paper from "@/component/Paper";
+import Modal from "@/component/ui/Modal";
+import Paper from "@/component/ui/Paper";
 import {
   checkboxClass,
   FormError,
@@ -10,8 +10,8 @@ import {
   SanctionUserCard,
   type SanctionTarget,
 } from "@/component/admin/SanctionParts";
-import { banUser, type SanctionResult } from "@/lib/sanction-actions";
-import { BAN_CONFIRM_WORD, isBanConfirmed } from "@/lib/sanctions";
+import { banUser, type SanctionResult } from "@/lib/admin/sanction-actions";
+import { BAN_CONFIRM_WORD, isBanConfirmed } from "@/lib/admin/sanctions";
 import {
   dangerButtonClass,
   disabledButtonClass,
@@ -19,7 +19,7 @@ import {
   inputClass,
   labelClass,
   secondaryButtonClass,
-} from "@/lib/styles";
+} from "@/lib/shared/styles";
 
 // "แบนผู้ใช้ถาวร" dialog for the admin panel. Needs a reason and the word BAN
 // typed out before the red button unlocks.

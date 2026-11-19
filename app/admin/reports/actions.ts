@@ -3,11 +3,11 @@
 
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
-import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
-import { isUuid } from "@/lib/room-board";
-import { notifyReportersOutcome } from "@/lib/report-service";
-import { signalMessagesChanged } from "@/lib/room-live-notify";
+import { auth } from "@/lib/auth/auth";
+import { prisma } from "@/lib/shared/prisma";
+import { isUuid } from "@/lib/rooms/room-board";
+import { signalMessagesChanged } from "@/lib/rooms/room-live-notify";
+import { notifyReportersOutcome } from "@/lib/rooms/report-service";
 
 export type ReportActionResult =
   | { ok: true; affected: number }

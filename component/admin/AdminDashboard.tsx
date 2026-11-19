@@ -3,7 +3,7 @@ import {
   formatLogTimestamp,
   type DashboardActivityItem,
   type DashboardActivityKind,
-} from "@/lib/admin-logs";
+} from "@/lib/admin/admin-logs";
 
 type DashboardStats = {
   totalUsers: number;

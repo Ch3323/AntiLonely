@@ -1,11 +1,11 @@
 import { Suspense } from "react";
 import { connection } from "next/server";
-import { AdminSkeleton } from "@/component/PageSkeletons";
-import { prisma } from "@/lib/prisma";
+import { AdminSkeleton } from "@/component/ui/PageSkeletons";
+import { prisma } from "@/lib/shared/prisma";
 import { redirect } from "next/navigation";
-import { getViewerSession } from "@/lib/server-action-helpers";
-import { buildDashboardActivities } from "@/lib/admin-logs";
-import { fetchAdminLogSources } from "@/lib/admin-logs-server";
+import { getViewerSession } from "@/lib/shared/server-action-helpers";
+import { buildDashboardActivities } from "@/lib/admin/admin-logs";
+import { fetchAdminLogSources } from "@/lib/admin/admin-logs-server";
 import AdminDashboard from "@/component/admin/AdminDashboard";
 
 const DAY_MS = 24 * 60 * 60 * 1000;

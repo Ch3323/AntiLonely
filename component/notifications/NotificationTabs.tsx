@@ -2,7 +2,7 @@
 
 import React from 'react';
 import type { NotificationCategory } from '@/types/notification';
-import { stickerToggleClass } from '@/lib/styles';
+import { stickerToggleClass } from '@/lib/shared/styles';
 
 interface NotificationTabsProps {
   activeCategory: NotificationCategory;

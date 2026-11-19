@@ -2,11 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
-import { auth } from "@/lib/auth";
-import { liftSanctionEmail, sendEmail } from "@/lib/email";
-import { prisma } from "@/lib/prisma";
-import { DEFAULT_ROOM_EMOJI, isUuid, resolveAuthorAlias } from "@/lib/room-board";
-import { addDuration, maskEmail, SUSPENSION_PRESET_DAYS } from "@/lib/sanctions";
+import { auth } from "@/lib/auth/auth";
+import { liftSanctionEmail, sendEmail } from "@/lib/auth/email";
+import { prisma } from "@/lib/shared/prisma";
+import { DEFAULT_ROOM_EMOJI, isUuid, resolveAuthorAlias } from "@/lib/rooms/room-board";
+import { addDuration, maskEmail, SUSPENSION_PRESET_DAYS } from "@/lib/admin/sanctions";
 
 type UserStatus = "active" | "suspended" | "banned";
 

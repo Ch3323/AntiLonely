@@ -1,11 +1,11 @@
 import { Suspense } from 'react';
 import { connection } from 'next/server';
-import { PostThreadSkeleton } from '@/component/PageSkeletons';
+import { PostThreadSkeleton } from '@/component/ui/PageSkeletons';
 import { notFound, redirect } from 'next/navigation';
-import Header from '@/component/Header';
+import Header from '@/component/layout/Header';
 import { PostThreadClient } from '@/component/post-thread/PostThreadClient';
-import { RoomLiveRefresh } from '@/component/LiveRefresh';
-import { getRoomLiveConfig, isRoomLiveConfigured } from '@/lib/room-live-server';
+import { RoomLiveRefresh } from '@/component/layout/LiveRefresh';
+import { getRoomLiveConfig, isRoomLiveConfigured } from '@/lib/rooms/room-live-server';
 import { getPostThreadData } from './actions';
 
 export const metadata = {

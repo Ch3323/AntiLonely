@@ -1,10 +1,10 @@
 import { Suspense } from "react";
 import { connection } from "next/server";
-import { AdminSkeleton } from "@/component/PageSkeletons";
+import { AdminSkeleton } from "@/component/ui/PageSkeletons";
 import { notFound, redirect } from "next/navigation";
 import AdminSidebar from "@/component/admin/AdminSidebar";
-import { AdminAutoRefresh } from "@/component/LiveRefresh";
-import { getViewerSession } from "@/lib/server-action-helpers";
+import { AdminAutoRefresh } from "@/component/layout/LiveRefresh";
+import { getViewerSession } from "@/lib/shared/server-action-helpers";
 
 // Guards every /admin page: no session -> login, not admin/moderator -> 404
 // (so the page's existence isn't revealed). Server actions still check on

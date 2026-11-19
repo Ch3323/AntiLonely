@@ -1,14 +1,14 @@
 import { Suspense } from "react";
 import { connection } from "next/server";
-import Header from "@/component/Header";
-import HomeMain from "@/component/HomeMain";
-import HomeSkeleton from "@/component/HomeSkeleton";
-import { HomeAutoRefresh } from "@/component/LiveRefresh";
-import PostBox from "@/component/PostBox";
-import RoomMembership from "@/component/RoomMembership";
-import Sidebar from "@/component/Sidebar";
-import { getHomeData } from "@/lib/home-data";
-import { getLobbyLiveTopic } from "@/lib/room-live-server";
+import Header from "@/component/layout/Header";
+import HomeMain from "@/component/rooms/HomeMain";
+import HomeSkeleton from "@/component/rooms/HomeSkeleton";
+import { HomeAutoRefresh } from "@/component/layout/LiveRefresh";
+import PostBox from "@/component/rooms/PostBox";
+import RoomMembership from "@/component/rooms/RoomMembership";
+import Sidebar from "@/component/layout/Sidebar";
+import { getHomeData } from "@/lib/rooms/home-data";
+import { getLobbyLiveTopic } from "@/lib/rooms/room-live-server";
 
 // The rooms, who has joined what and the unread count are read per request, so
 // the page streams in behind the header.

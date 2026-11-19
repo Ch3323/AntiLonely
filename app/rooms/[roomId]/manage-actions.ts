@@ -1,17 +1,17 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { prisma } from "@/lib/prisma";
-import { notifyRoomClosed } from "@/lib/report-service";
-import { signalLobbyChange, signalRoomChange } from "@/lib/room-live-notify";
-import { isUuid, resolveAuthorAlias } from "@/lib/room-board";
-import { validateRoomEdit } from "@/lib/room-create";
-import { canManageRoom, getRoomRole } from "@/lib/room-permissions";
+import { prisma } from "@/lib/shared/prisma";
+import { signalLobbyChange, signalRoomChange } from "@/lib/rooms/room-live-notify";
+import { isUuid, resolveAuthorAlias } from "@/lib/rooms/room-board";
+import { validateRoomEdit } from "@/lib/rooms/room-create";
+import { canManageRoom, getRoomRole } from "@/lib/rooms/room-permissions";
+import { notifyRoomClosed } from "@/lib/rooms/report-service";
 import {
   getViewerUser,
   runSafeMutation,
   type ActionResult,
-} from "@/lib/server-action-helpers";
+} from "@/lib/shared/server-action-helpers";
 
 export type RoomMemberRow = {
   userId: string;

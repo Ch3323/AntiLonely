@@ -1,14 +1,14 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import Icon from "@/component/Icon";
-import { useNow } from "@/component/useNow";
+import Icon from "@/component/ui/Icon";
+import { useNow } from "@/component/hooks/useNow";
 import {
   formatActivityTime,
   formatLogTimestamp,
   type ActivityCategory,
   type SummaryActivityFeed,
-} from "@/lib/admin-logs";
+} from "@/lib/admin/admin-logs";
 
 type CategoryFilter = "all" | ActivityCategory;
 

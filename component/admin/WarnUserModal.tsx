@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import Modal from "@/component/Modal";
-import Paper from "@/component/Paper";
+import Modal from "@/component/ui/Modal";
+import Paper from "@/component/ui/Paper";
 import {
   checkboxClass,
   FormError,
@@ -10,7 +10,7 @@ import {
   SanctionUserCard,
   type SanctionTarget,
 } from "@/component/admin/SanctionParts";
-import { warnUser, type SanctionResult } from "@/lib/sanction-actions";
+import { warnUser, type SanctionResult } from "@/lib/admin/sanction-actions";
 import {
   disabledButtonClass,
   hintClass,
@@ -18,7 +18,7 @@ import {
   labelClass,
   primaryButtonClass,
   secondaryButtonClass,
-} from "@/lib/styles";
+} from "@/lib/shared/styles";
 
 // "ตักเตือนผู้ใช้" dialog for the admin panel. Logs a warning sanction and
 // creates a user notification without locking the account.

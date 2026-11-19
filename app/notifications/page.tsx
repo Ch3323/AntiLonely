@@ -1,15 +1,15 @@
 import { Suspense } from 'react';
 import { redirect } from "next/navigation";
 import { connection } from 'next/server';
-import { NotificationsSkeleton } from '@/component/PageSkeletons';
-import Header from '@/component/Header';
+import { NotificationsSkeleton } from '@/component/ui/PageSkeletons';
+import Header from '@/component/layout/Header';
 import { NotificationsClient } from '@/component/notifications/NotificationsClient';
-import { NotificationsAutoRefresh } from '@/component/LiveRefresh';
-import { getNotificationItems } from "@/lib/notifications-data";
-import { getUserLiveTopic } from "@/lib/room-live-server";
-import { getViewerUser } from "@/lib/server-action-helpers";
-import { getMyRooms } from "@/lib/home-data";
-import { resolveAuthorAlias } from "@/lib/room-board";
+import { NotificationsAutoRefresh } from '@/component/layout/LiveRefresh';
+import { getNotificationItems } from "@/lib/notifications/notifications-data";
+import { getUserLiveTopic } from "@/lib/rooms/room-live-server";
+import { getViewerUser } from "@/lib/shared/server-action-helpers";
+import { getMyRooms } from "@/lib/rooms/home-data";
+import { resolveAuthorAlias } from "@/lib/rooms/room-board";
 
 export const metadata = {
   title: 'การแจ้งเตือน | AntiLonely',

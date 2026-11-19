@@ -1,5 +1,5 @@
-import SignupForm from "@/component/SignupForm";
-import SignedInRedirect from "@/component/SignedInRedirect";
+import SignupForm from "@/component/auth/SignupForm";
+import SignedInRedirect from "@/component/auth/SignedInRedirect";
 
 export default function SignupPage() {
   return (

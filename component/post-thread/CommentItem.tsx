@@ -2,17 +2,17 @@
 
 import React, { memo, useState, useEffect, useCallback } from 'react';
 import type { ThreadComment, ThreadReply, ThreadBranch } from '@/types/post-thread';
-import { formatRelativeTimeThai, groupRepliesIntoBranches } from '@/lib/post-thread';
+import { formatRelativeTimeThai, groupRepliesIntoBranches } from '@/lib/post-thread/post-thread';
 import { ReactionBar } from './ReactionBar';
 import { ReplyComposer } from './ReplyComposer';
-import Icon from '@/component/Icon';
+import Icon from '@/component/ui/Icon';
 import {
   avatarClass,
   disabledButtonClass,
   inputClass,
   outlineButtonClass,
   primaryButtonClass,
-} from '@/lib/styles';
+} from '@/lib/shared/styles';
 
 interface CommentItemProps {
   comment: ThreadComment;
