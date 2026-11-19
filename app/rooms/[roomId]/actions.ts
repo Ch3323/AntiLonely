@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import type { Prisma } from '@/lib/generated/prisma/client';
 import { prisma } from '@/lib/prisma';
 import { toggleMessageReaction } from '@/lib/reaction-service';
+import { submitReport } from '@/lib/report-service';
 import { signalRoomChange } from '@/lib/room-live-notify';
 import {
   canManageRoom,
@@ -770,6 +771,15 @@ export async function reportRoomTarget(input: {
       return { ok: false, error: 'เหตุผลการรายงานไม่ถูกต้อง' };
     }
 
+    const room = await prisma.room.findUnique({
+      where: { id: input.roomId },
+      select: { status: true, creatorId: true },
+    });
+    if (!room || room.status !== 'active') {
+      return { ok: false, error: 'ไม่พบห้องที่ต้องการรายงาน' };
+    }
+
+    // No postId: the whole room is being reported, not a message in it.
     let targetMessageId: string | null = null;
     if (input.postId) {
       if (!isUuid(input.postId)) {
@@ -791,45 +801,16 @@ export async function reportRoomTarget(input: {
         return { ok: false, error: 'ไม่สามารถรายงานกระทู้ของตนเองได้' };
       }
       targetMessageId = post.id;
-    } else {
-      const latestPost = await prisma.message.findFirst({
-        where: {
-          roomId: input.roomId,
-          status: 'visible',
-          room: { status: 'active' },
-        },
-        orderBy: { createdAt: 'desc' },
-        select: { id: true, authorId: true },
-      });
-      if (!latestPost) {
-        return {
-          ok: false,
-          error: 'ยังไม่มีข้อความในห้องนี้ให้แนบในรายงาน',
-        };
-      }
-      targetMessageId = latestPost.id;
+    } else if (room.creatorId === viewer.id) {
+      return { ok: false, error: 'ไม่สามารถรายงานห้องของตนเองได้' };
     }
 
-    const formattedReason = formatReportReason(input.reason, input.details);
-
-    await prisma.report.upsert({
-      where: {
-        reporterId_messageId: {
-          reporterId: viewer.id,
-          messageId: targetMessageId,
-        },
-      },
-      create: {
-        reporterId: viewer.id,
-        messageId: targetMessageId,
-        roomId: input.roomId,
-        reason: formattedReason,
-        status: 'pending',
-      },
-      update: {
-        reason: formattedReason,
-        status: 'pending',
-      },
+    await submitReport({
+      reporterId: viewer.id,
+      roomId: input.roomId,
+      messageId: targetMessageId,
+      postId: targetMessageId,
+      reason: formatReportReason(input.reason, input.details),
     });
 
     return { ok: true, data: { reported: true } };

@@ -18,6 +18,7 @@ export async function getNotificationItems(userId: string) {
       roomId: true,
       postId: true,
       messageId: true,
+      detail: true,
       sanction: {
         select: {
           type: true,

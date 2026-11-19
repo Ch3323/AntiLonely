@@ -2,8 +2,9 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
+import { notifyRoomClosed } from "@/lib/report-service";
 import { signalLobbyChange, signalRoomChange } from "@/lib/room-live-notify";
-import { isUuid } from "@/lib/room-board";
+import { isUuid, resolveAuthorAlias } from "@/lib/room-board";
 import { validateRoomEdit } from "@/lib/room-create";
 import { canManageRoom, getRoomRole } from "@/lib/room-permissions";
 import {
@@ -86,6 +87,7 @@ export async function deleteRoom(input: {
       data: { status: "archived" },
     });
 
+    await notifyRoomClosed(owner.room.id, owner.viewer.id);
     refreshRoomPages(owner.room);
     signalLobbyChange();
     signalRoomChange({ roomId: owner.room.id, board: true, lobby: true });
@@ -107,7 +109,9 @@ export async function listRoomMembers(input: {
       select: {
         userId: true,
         role: true,
-        user: { select: { name: true, displayUsername: true, username: true } },
+        user: {
+          select: { id: true, name: true, displayUsername: true, username: true },
+        },
       },
     });
 
@@ -116,11 +120,7 @@ export async function listRoomMembers(input: {
       data: {
         members: rows.map((row) => ({
           userId: row.userId,
-          name:
-            row.user.displayUsername?.trim() ||
-            row.user.name?.trim() ||
-            row.user.username ||
-            "นิรนาม",
+          name: resolveAuthorAlias(row.user),
           role: row.role,
           isYou: row.userId === owner.viewer.id,
         })),

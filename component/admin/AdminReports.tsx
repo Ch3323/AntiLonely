@@ -13,7 +13,9 @@ import {
 } from "@/app/admin/reports/actions";
 
 type ReportRow = {
+  // Row key: a message id, or "room:<id>" when the whole room was reported.
   messageId: string;
+  kind: "message" | "room";
   content: string;
   room: string;
   author: string;
@@ -188,6 +190,8 @@ export default function AdminReports({
   }
 
   async function handleDelete(ids: string[]) {
+    // Room reports have no content to delete.
+    ids = ids.filter((id) => !id.startsWith("room:"));
     if (ids.length === 0 || busy) return;
 
     const confirmed = window.confirm(
@@ -420,7 +424,7 @@ export default function AdminReports({
 
                       <button
                         type="button"
-                        disabled={!isPending || busy}
+                        disabled={!isPending || busy || item.kind === "room"}
                         onClick={() => handleDelete([item.messageId])}
                         className="rounded-lg border border-red-300 px-3 py-2 text-xs font-medium text-red-500 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-40"
                       >

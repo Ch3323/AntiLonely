@@ -5,6 +5,7 @@ import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { notifyRoomClosed } from "@/lib/report-service";
 import { signalRoomChange } from "@/lib/room-live-notify";
 
 async function checkRoomPermission() {
@@ -104,6 +105,8 @@ export async function archiveRoom(id: string) {
         error: "ไม่พบห้อง หรือห้องนี้ถูกจัดเก็บแล้ว",
       };
     }
+
+    await notifyRoomClosed(id);
 
     revalidatePath("/admin/rooms");
     revalidatePath("/admin");

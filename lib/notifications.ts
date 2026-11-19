@@ -124,6 +124,8 @@ export interface DbNotificationRow {
   type: string;
   isRead: boolean;
   createdAt: Date;
+  /** Report notices: "resolved", "dismissed", "room_closed"; null for the receipt. */
+  detail?: string | null;
   sanction?: { type?: string; reason: string } | null;
   context?: DbNotificationContext | null;
 }
@@ -198,6 +200,49 @@ export function mapDbNotificationsToItems(
       actionText: 'มีการแจ้งเตือนใหม่',
       category: 'report' as const,
     };
+
+    // Notices about a report the user filed, or about a closed room.
+    if (
+      String(n.type) === 'report' &&
+      n.context?.roomName &&
+      !n.context.actorName
+    ) {
+      const ctx = n.context;
+      const about = ctx.messageId ? 'กระทู้' : 'ห้อง';
+      const base = {
+        id: n.id,
+        type: 'report' as const,
+        actor: { name: 'ทีมผู้ดูแล AntiLonely' },
+        createdAt: n.createdAt.toISOString(),
+        isRead: n.isRead,
+      };
+      if (n.detail === 'room_closed') {
+        return {
+          ...base,
+          actionText: `ห้อง ${ctx.roomName} ถูกปิดแล้ว`,
+          targetUrl: '/',
+        };
+      }
+      const actionText =
+        n.detail === 'resolved'
+          ? `จัดการรายงาน${about}ที่คุณส่งเรียบร้อยแล้ว ในห้อง ${ctx.roomName}`
+          : n.detail === 'dismissed'
+            ? `ตรวจสอบรายงาน${about}ที่คุณส่งแล้ว ไม่พบการละเมิดกฎ ในห้อง ${ctx.roomName}`
+            : `ได้รับรายงาน${about}ที่คุณส่งแล้ว ในห้อง ${ctx.roomName}`;
+      return {
+        ...base,
+        actionText,
+        ...(!n.detail && ctx.preview ? { contentPreview: ctx.preview } : {}),
+        targetUrl:
+          n.detail || !ctx.roomSlug
+            ? ctx.roomSlug
+              ? `/rooms/${ctx.roomSlug}`
+              : '/notifications'
+            : ctx.postId
+              ? `/rooms/${ctx.roomSlug}/posts/${ctx.postId}`
+              : `/rooms/${ctx.roomSlug}`,
+      };
+    }
 
     // A reply (or similar) that knows who did it and where: name them, say
     // which room, quote it and link to the thread.
