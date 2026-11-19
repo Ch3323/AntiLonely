@@ -5,7 +5,7 @@ import { headers } from "next/headers";
 import { auth } from "@/lib/auth/auth";
 import { liftSanctionEmail, sendEmail } from "@/lib/auth/email";
 import { prisma } from "@/lib/shared/prisma";
-import { DEFAULT_ROOM_EMOJI, isUuid } from "@/lib/rooms/room-board";
+import { DEFAULT_ROOM_EMOJI, isUuid, resolveAuthorAlias } from "@/lib/rooms/room-board";
 import { addDuration, maskEmail, SUSPENSION_PRESET_DAYS } from "@/lib/admin/sanctions";
 
 type UserStatus = "active" | "suspended" | "banned";
@@ -295,15 +295,8 @@ export async function getAdminUserDetail(
 
     if (!user) return { ok: false, error: "ไม่พบผู้ใช้" };
 
-    const username = user.displayUsername?.trim() || user.username;
-    const name = user.name.trim();
-    // ชื่อเล่น = user.name ที่ผู้ใช้ตั้งเอง ถ้าซ้ำกับชื่อผู้ใช้ก็ไม่ต้องโชว์
-    const nickname =
-      name &&
-      name.toLowerCase() !== username.toLowerCase() &&
-      name.toLowerCase() !== user.username.toLowerCase()
-        ? name
-        : null;
+    // ชื่อที่ผู้ใช้ตั้งเอง (ไม่โชว์รหัส user_xxxx ที่ระบบสุ่มให้)
+    const username = resolveAuthorAlias(user);
 
     // กิจกรรมล่าสุด = ค่าที่ใหม่กว่าระหว่างข้อความล่าสุดกับ session ล่าสุด
     const times = [messages[0]?.createdAt, lastSession?.updatedAt]
@@ -315,7 +308,7 @@ export async function getAdminUserDetail(
       user: {
         id: user.id,
         username,
-        nickname,
+        nickname: null,
         image: user.image ?? null,
         email: maskEmail(user.email),
         role: user.role,

@@ -9,6 +9,7 @@ import {
   resolveRoomRoleFromRecords,
 } from '@/lib/rooms/room-permissions';
 import { toggleMessageReaction } from '@/lib/post-thread/reaction-service';
+import { submitReport } from '@/lib/rooms/report-service';
 import {
   formatReportReason,
   getViewerUser,
@@ -926,24 +927,12 @@ export async function reportThreadTarget(input: {
 
     const formattedReason = formatReportReason(input.reason, input.details);
 
-    await prisma.report.upsert({
-      where: {
-        reporterId_messageId: {
-          reporterId: viewer.id,
-          messageId,
-        },
-      },
-      create: {
-        reporterId: viewer.id,
-        messageId,
-        roomId: context.room.id,
-        reason: formattedReason,
-        status: 'pending',
-      },
-      update: {
-        reason: formattedReason,
-        status: 'pending',
-      },
+    await submitReport({
+      reporterId: viewer.id,
+      roomId: context.room.id,
+      messageId,
+      postId: context.rootPost.id,
+      reason: formattedReason,
     });
 
     return { ok: true, data: { reported: true } };
