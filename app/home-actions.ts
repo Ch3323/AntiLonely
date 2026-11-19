@@ -5,7 +5,7 @@ import {
   createRoomPost,
   updateRoomMembership,
 } from "@/app/rooms/[roomId]/actions";
-import { getMyRooms } from "@/lib/home-data";
+import { getMyRooms } from "@/lib/rooms/home-data";
 import type { MyRoom } from "@/types/room";
 
 export type HomeActionResult = { ok: true } | { ok: false; error: string };

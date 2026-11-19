@@ -1,5 +1,5 @@
 import React from 'react';
-import EmptyNote from '@/component/EmptyNote';
+import EmptyNote from '@/component/ui/EmptyNote';
 
 interface EmptyStateProps {
   message?: string;

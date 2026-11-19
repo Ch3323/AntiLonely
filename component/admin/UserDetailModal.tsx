@@ -5,12 +5,12 @@ import {
   getAdminUserDetail,
   type AdminUserDetail,
 } from "@/app/admin/users/actions";
-import Icon from "@/component/Icon";
-import Modal from "@/component/Modal";
-import Paper from "@/component/Paper";
-import { useNow } from "@/component/useNow";
-import { formatRelativeTimeThai } from "@/lib/post-thread";
-import { avatarClass, highlightClass, primaryButtonClass } from "@/lib/styles";
+import Icon from "@/component/ui/Icon";
+import Modal from "@/component/ui/Modal";
+import Paper from "@/component/ui/Paper";
+import { useNow } from "@/component/hooks/useNow";
+import { formatRelativeTimeThai } from "@/lib/post-thread/post-thread";
+import { avatarClass, highlightClass, primaryButtonClass } from "@/lib/shared/styles";
 
 // ชิปห้องที่โชว์ในหน้าแรก เกินนี้ให้กด "ดูเพิ่มเติม"
 const MAX_CHIPS = 8;

@@ -2,7 +2,7 @@
 
 import React from 'react';
 import type { NotificationItem as NotificationItemType } from '@/types/notification';
-import { indexCardClass } from '@/lib/styles';
+import { indexCardClass } from '@/lib/shared/styles';
 import { NotificationItem } from './NotificationItem';
 
 interface NotificationSectionProps {

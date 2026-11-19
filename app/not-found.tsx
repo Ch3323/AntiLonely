@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import Header from "@/component/Header";
-import Paper from "@/component/Paper";
-import { highlightClass, primaryButtonClass } from "@/lib/styles";
+import Header from "@/component/layout/Header";
+import Paper from "@/component/ui/Paper";
+import { highlightClass, primaryButtonClass } from "@/lib/shared/styles";
 
 export const metadata: Metadata = {
   title: "ไม่พบหน้านี้ | AntiLonely",

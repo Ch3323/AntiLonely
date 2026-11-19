@@ -1,14 +1,14 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { prisma } from '@/lib/prisma';
-import { signalUserChange } from '@/lib/room-live-notify';
-import { isUuid } from '@/lib/room-board';
+import { prisma } from '@/lib/shared/prisma';
+import { signalUserChange } from '@/lib/rooms/room-live-notify';
+import { isUuid } from '@/lib/rooms/room-board';
 import {
   getViewerUser,
   runSafeMutation,
   type ActionResult,
-} from '@/lib/server-action-helpers';
+} from '@/lib/shared/server-action-helpers';
 
 export async function markNotificationsRead(input: {
   ids?: string[];

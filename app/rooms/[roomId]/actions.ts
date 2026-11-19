@@ -2,22 +2,22 @@
 
 import { revalidatePath } from 'next/cache';
 import type { Prisma } from '@/lib/generated/prisma/client';
-import { prisma } from '@/lib/prisma';
-import { toggleMessageReaction } from '@/lib/reaction-service';
-import { signalRoomChange } from '@/lib/room-live-notify';
+import { prisma } from '@/lib/shared/prisma';
+import { toggleMessageReaction } from '@/lib/post-thread/reaction-service';
+import { signalRoomChange } from '@/lib/rooms/room-live-notify';
 import {
   canManageRoom,
   canModerateRoom,
   getRoomRole,
   resolveRoomRoleFromRecords,
-} from '@/lib/room-permissions';
+} from '@/lib/rooms/room-permissions';
 import {
   formatReportReason,
   getViewerUser,
   runSafeMutation,
   VALID_REPORT_REASONS,
   type ActionResult,
-} from '@/lib/server-action-helpers';
+} from '@/lib/shared/server-action-helpers';
 import type { MyRoom, Room } from '@/types/room';
 import {
   type PostSort,
@@ -33,7 +33,7 @@ import {
   resolveAuthorAlias,
   resolveRoomLookupTarget,
   validatePostContent,
-} from '@/lib/room-board';
+} from '@/lib/rooms/room-board';
 import type {
   BoardPostSummary,
   ReactionItem,

@@ -1,8 +1,8 @@
 import { revalidatePath } from 'next/cache';
 import { NextResponse, type NextRequest } from 'next/server';
-import { handleToggleReactionHttp } from '@/lib/reaction-helpers';
-import { toggleMessageReaction } from '@/lib/reaction-service';
-import { signalRoomChange } from '@/lib/room-live-notify';
+import { handleToggleReactionHttp } from '@/lib/post-thread/reaction-helpers';
+import { toggleMessageReaction } from '@/lib/post-thread/reaction-service';
+import { signalRoomChange } from '@/lib/rooms/room-live-notify';
 
 export async function POST(request: NextRequest) {
   const response = await handleToggleReactionHttp(request, {

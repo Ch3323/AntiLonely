@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { getViewerUser } from "@/lib/server-action-helpers";
+import { prisma } from "@/lib/shared/prisma";
+import { getViewerUser } from "@/lib/shared/server-action-helpers";
 
 export async function GET() {
   const viewer = await getViewerUser();

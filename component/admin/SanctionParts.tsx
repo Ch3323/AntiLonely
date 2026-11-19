@@ -1,6 +1,6 @@
-import Icon from "@/component/Icon";
-import { maskEmail } from "@/lib/sanctions";
-import { alertClass, avatarClass, choiceClass } from "@/lib/styles";
+import Icon from "@/component/ui/Icon";
+import { maskEmail } from "@/lib/admin/sanctions";
+import { alertClass, avatarClass, choiceClass } from "@/lib/shared/styles";
 
 // Shared pieces of the suspend and ban dialogs (admin panel). They sit on
 // Paper in the app's scrapbook look; a ban is the one place red means danger.

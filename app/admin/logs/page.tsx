@@ -1,11 +1,11 @@
 import { Suspense } from "react";
 import { connection } from "next/server";
 import { notFound, redirect } from "next/navigation";
-import { AdminSkeleton } from "@/component/PageSkeletons";
+import { AdminSkeleton } from "@/component/ui/PageSkeletons";
 import AdminLogsClient from "@/component/admin/AdminLogsClient";
-import { getViewerSession } from "@/lib/server-action-helpers";
-import { buildSummaryActivityFeed } from "@/lib/admin-logs";
-import { fetchAdminLogSources } from "@/lib/admin-logs-server";
+import { getViewerSession } from "@/lib/shared/server-action-helpers";
+import { buildSummaryActivityFeed } from "@/lib/admin/admin-logs";
+import { fetchAdminLogSources } from "@/lib/admin/admin-logs-server";
 
 const LOG_FETCH_LIMIT = 250;
 

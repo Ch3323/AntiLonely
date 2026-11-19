@@ -11,16 +11,16 @@ import {
   groupNotifications,
   countUnreadNotifications,
   TIME_REFRESH_INTERVAL_MS,
-} from '@/lib/notifications';
-import Header from '@/component/Header';
-import Icon from '@/component/Icon';
+} from '@/lib/notifications/notifications';
+import Header from '@/component/layout/Header';
+import Icon from '@/component/ui/Icon';
 import type { MyRoom } from '@/types/room';
 import { markNotificationsRead } from '@/app/notifications/actions';
 import {
   disabledButtonClass,
   highlightClass,
   outlineButtonClass,
-} from '@/lib/styles';
+} from '@/lib/shared/styles';
 import { NotificationTabs } from './NotificationTabs';
 import { NotificationSection } from './NotificationSection';
 import { EmptyState } from './EmptyState';

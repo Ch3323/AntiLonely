@@ -1,11 +1,11 @@
 import { Suspense } from "react";
 import { connection } from "next/server";
-import { AdminSkeleton } from "@/component/PageSkeletons";
+import { AdminSkeleton } from "@/component/ui/PageSkeletons";
 
-import { getViewerSession } from "@/lib/server-action-helpers";
-import { prisma } from "@/lib/prisma";
-import { resolveAuthorAlias } from "@/lib/room-board";
-import { maskEmail } from "@/lib/sanctions";
+import { getViewerSession } from "@/lib/shared/server-action-helpers";
+import { prisma } from "@/lib/shared/prisma";
+import { resolveAuthorAlias } from "@/lib/rooms/room-board";
+import { maskEmail } from "@/lib/admin/sanctions";
 import AdminReports from "@/component/admin/AdminReports";
 
 export default function AdminReportsPage() {

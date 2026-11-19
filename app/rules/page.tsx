@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { AuthLink } from "@/component/AuthCard";
-import CommunityRules from "@/component/CommunityRules";
-import Header from "@/component/Header";
-import Paper from "@/component/Paper";
-import { highlightClass, outlineButtonClass, primaryButtonClass } from "@/lib/styles";
+import { AuthLink } from "@/component/auth/AuthCard";
+import CommunityRules from "@/component/auth/CommunityRules";
+import Header from "@/component/layout/Header";
+import Paper from "@/component/ui/Paper";
+import { highlightClass, outlineButtonClass, primaryButtonClass } from "@/lib/shared/styles";
 
 export const metadata: Metadata = {
   title: "กติกาของชุมชน | AntiLonely",

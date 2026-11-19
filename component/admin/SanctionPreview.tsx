@@ -5,14 +5,14 @@ import BanUserModal from "@/component/admin/BanUserModal";
 import type { SanctionTarget } from "@/component/admin/SanctionParts";
 import SuspendUserModal from "@/component/admin/SuspendUserModal";
 import WarnUserModal from "@/component/admin/WarnUserModal";
-import Icon from "@/component/Icon";
-import { formatThaiDate } from "@/lib/sanctions";
+import Icon from "@/component/ui/Icon";
+import { formatThaiDate } from "@/lib/admin/sanctions";
 import {
   dangerButtonClass,
   highlightClass,
   outlineButtonClass,
   primaryButtonClass,
-} from "@/lib/styles";
+} from "@/lib/shared/styles";
 
 const suspendTarget: SanctionTarget = { id: "preview-1", username: "anon_012", email: "claire@outlook.com" };
 const banTarget: SanctionTarget = { id: "preview-2", username: "anon_204", email: "dave@gmail.com" };

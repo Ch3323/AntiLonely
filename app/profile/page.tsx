@@ -1,12 +1,12 @@
 "use client";
 
-import { authClient } from "@/lib/auth-client";
-import EditProfileButton from "@/component/EditProfileButton";
-import EmptyNote from "@/component/EmptyNote";
-import Header from "@/component/Header";
-import Icon from "@/component/Icon";
-import PostCard from "@/component/PostCard";
-import Tape from "@/component/Tape";
+import { authClient } from "@/lib/auth/auth-client";
+import EditProfileButton from "@/component/auth/EditProfileButton";
+import EmptyNote from "@/component/ui/EmptyNote";
+import Header from "@/component/layout/Header";
+import Icon from "@/component/ui/Icon";
+import PostCard from "@/component/rooms/PostCard";
+import Tape from "@/component/ui/Tape";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import type { ReactionItem } from "@/types/post-thread";
@@ -16,7 +16,7 @@ import {
   skeletonClass,
   tabClass,
   tabListClass,
-} from "@/lib/styles";
+} from "@/lib/shared/styles";
 
 type Reaction = { emoji: string; count: number; reactedByMe: boolean };
 

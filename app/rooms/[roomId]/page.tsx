@@ -1,16 +1,16 @@
 import { Suspense } from "react";
 import { connection } from "next/server";
-import { RoomSkeleton } from "@/component/PageSkeletons";
+import { RoomSkeleton } from "@/component/ui/PageSkeletons";
 import { notFound, redirect } from "next/navigation";
-import Header from "@/component/Header";
-import RoomBoardFeed from "@/component/RoomBoardFeed";
-import { RoomLiveRefresh } from "@/component/LiveRefresh";
+import Header from "@/component/layout/Header";
+import RoomBoardFeed from "@/component/rooms/RoomBoardFeed";
+import { RoomLiveRefresh } from "@/component/layout/LiveRefresh";
 import {
   getRoomLiveConfig,
   isRoomLiveConfigured,
-} from "@/lib/room-live-server";
-import { getRoomPresenceConfig } from "@/lib/room-presence-server";
-import { parsePageNumber, parsePostSort } from "@/lib/room-board";
+} from "@/lib/rooms/room-live-server";
+import { getRoomPresenceConfig } from "@/lib/rooms/room-presence-server";
+import { parsePageNumber, parsePostSort } from "@/lib/rooms/room-board";
 import { getRoomBoardData } from "./actions";
 
 type Props = {
