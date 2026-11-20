@@ -2,7 +2,12 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { archiveRoom, unarchiveRoom, updateRoom } from "@/app/admin/rooms/actions";
+import {
+  archiveRoom,
+  deleteRoomsPermanently,
+  unarchiveRoom,
+  updateRoom,
+} from "@/app/admin/rooms/actions";
 
 type Room = {
   id: string;
@@ -64,8 +69,38 @@ export default function AdminRooms({ rooms, summary }: Props) {
   const [selected, setSelected] = useState<string[]>([]);
   const [editing, setEditing] = useState<Room | null>(null);
   const [confirmArchive, setConfirmArchive] = useState<Room | null>(null);
+  const [confirmDeleteTargets, setConfirmDeleteTargets] = useState<Room[]>([]);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const [notice, setNotice] = useState("");
   const [pending, setPending] = useState(false);
+
+  const requiredDeletePhrase =
+    confirmDeleteTargets.length === 1
+      ? confirmDeleteTargets[0].name.trim()
+      : "ลบถาวร";
+  const isDeleteConfirmed =
+    confirmDeleteTargets.length > 0 &&
+    deleteConfirmText.trim() === requiredDeletePhrase;
+
+  function openDeleteModal(targets: Room[]) {
+    setConfirmDeleteTargets(targets);
+    setDeleteConfirmText("");
+  }
+
+  function closeDeleteModal() {
+    setConfirmDeleteTargets([]);
+    setDeleteConfirmText("");
+  }
+
+  const selectedRooms = useMemo(
+    () => rooms.filter((room) => selected.includes(room.id)),
+    [rooms, selected]
+  );
+
+  const archivableSelectedCount = useMemo(
+    () => selectedRooms.filter((room) => room.status !== "archived").length,
+    [selectedRooms]
+  );
 
   const filteredRooms = useMemo(() => {
     return rooms.filter((room) => {
@@ -233,6 +268,40 @@ async function handleBulkUnarchive() {
   setNotice(`ยกเลิกการจัดเก็บ ${targets.length} ห้องเรียบร้อยแล้ว`);
 }
 
+  async function handleDeletePermanently() {
+    if (!isDeleteConfirmed || pending) return;
+
+    const targets = confirmDeleteTargets;
+    setPending(true);
+    setNotice("");
+
+    try {
+      const result = await deleteRoomsPermanently(
+        targets.map((room) => room.id)
+      );
+
+      if (!result.ok) {
+        closeDeleteModal();
+        setNotice(result.error);
+        return;
+      }
+
+      const deletedIds = new Set(targets.map((room) => room.id));
+      setSelected((current) => current.filter((id) => !deletedIds.has(id)));
+      closeDeleteModal();
+      setNotice(
+        targets.length === 1
+          ? `ลบห้อง "${targets[0].name}" ถาวรเรียบร้อยแล้ว`
+          : `ลบห้องถาวรเรียบร้อยแล้ว ${result.deletedCount} ห้อง`
+      );
+    } catch {
+      closeDeleteModal();
+      setNotice("ไม่สามารถลบห้องถาวรได้ กรุณาลองใหม่");
+    } finally {
+      setPending(false);
+    }
+  }
+
   return (
     <div className="min-h-full text-ink">
       <div className="mb-6 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
@@ -278,9 +347,11 @@ async function handleBulkUnarchive() {
           return (
             <button
               key={item.id}
+              type="button"
               onClick={() => {
                 setTab(item.id);
                 setSelected([]);
+                closeDeleteModal();
               }}
               className={`-mb-px border-b-2 pb-2 text-sm transition ${
                 tab === item.id
@@ -301,6 +372,7 @@ async function handleBulkUnarchive() {
         >
           {notice}
           <button
+            type="button"
             onClick={() => setNotice("")}
             className="ml-3 text-ink-soft underline"
           >
@@ -309,39 +381,51 @@ async function handleBulkUnarchive() {
         </div>
       )}
 
-      {selected.length > 0 && (
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-white p-3 text-sm">
-          <span>เลือกแล้ว {selected.length} ห้อง</span>
+      {selectedRooms.length > 0 && (
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-edge-strong bg-white p-3 text-sm">
+          <span>เลือกแล้ว {selectedRooms.length} ห้อง</span>
           <div className="flex flex-wrap gap-2">
             <button
+              type="button"
+              disabled={pending}
               onClick={() => setSelected([])}
-              className="rounded-md border px-3 py-1.5 hover:bg-butter"
+              className="rounded-md border border-edge-strong px-3 py-1.5 hover:bg-butter disabled:opacity-50"
             >
               ยกเลิกการเลือก
             </button>
             {tab === "archived" ? (
               <button
+                type="button"
                 disabled={pending}
                 onClick={handleBulkUnarchive}
-                className="rounded-md border px-3 py-1.5 hover:bg-butter disabled:opacity-50"
+                className="rounded-md border border-edge-strong px-3 py-1.5 hover:bg-butter disabled:opacity-50"
               >
                 ยกเลิกการจัดเก็บที่เลือก
               </button>
             ) : (
               <button
-                disabled={pending}
+                type="button"
+                disabled={pending || archivableSelectedCount === 0}
                 onClick={handleBulkArchive}
-                className="rounded-md border border-red-200 px-3 py-1.5 text-red-600 hover:bg-red-50 disabled:opacity-50"
+                className="rounded-md border border-amber-300 bg-amber-50 px-3 py-1.5 text-amber-800 hover:bg-amber-100 disabled:opacity-50"
               >
                 จัดเก็บที่เลือก
               </button>
             )}
+            <button
+              type="button"
+              disabled={pending}
+              onClick={() => openDeleteModal(selectedRooms)}
+              className="rounded-md bg-red-600 px-3 py-1.5 text-white hover:bg-red-700 disabled:opacity-50"
+            >
+              ลบถาวร
+            </button>
           </div>
         </div>
       )}
 
       <div className="overflow-x-auto rounded-xl border border-edge-strong bg-white">
-        <table className="w-full min-w-[850px] border-collapse text-left text-sm">
+        <table className="w-full min-w-[920px] border-collapse text-left text-sm">
           <thead className="bg-cream text-ink-soft">
             <tr className="h-10">
               <th className="w-14 px-4">
@@ -424,8 +508,9 @@ async function handleBulkUnarchive() {
                 </td>
 
                 <td className="px-4">
-                  <div className="flex gap-2">
+                  <div className="flex items-center gap-2 whitespace-nowrap">
                     <button
+                      type="button"
                       disabled={room.status === "archived"}
                       onClick={() => setEditing(room)}
                       className="rounded-md border border-edge-strong px-2.5 py-1 text-xs hover:bg-butter disabled:cursor-not-allowed disabled:opacity-40"
@@ -434,6 +519,7 @@ async function handleBulkUnarchive() {
                     </button>
                     {room.status === "archived" ? (
                       <button
+                        type="button"
                         disabled={pending}
                         onClick={() => handleUnarchive(room)}
                         className="rounded-md border border-edge-strong px-2.5 py-1 text-xs hover:bg-butter disabled:opacity-50"
@@ -442,12 +528,21 @@ async function handleBulkUnarchive() {
                       </button>
                     ) : (
                       <button
+                        type="button"
                         onClick={() => setConfirmArchive(room)}
                         className="rounded-md border border-edge-strong px-2.5 py-1 text-xs hover:bg-butter"
                       >
                         จัดเก็บ
                       </button>
                     )}
+                    <button
+                      type="button"
+                      disabled={pending}
+                      onClick={() => openDeleteModal([room])}
+                      className="rounded-md border border-red-200 px-2.5 py-1 text-xs text-red-600 hover:bg-red-50 disabled:opacity-50"
+                    >
+                      ลบถาวร
+                    </button>
                   </div>
                 </td>
               </tr>
@@ -489,7 +584,7 @@ async function handleBulkUnarchive() {
                 setEditing({ ...editing, name: event.target.value })
               }
               maxLength={100}
-              className="mt-2 w-full rounded-lg border px-3 py-2 text-sm outline-none focus:border-kmutt-orange"
+              className="mt-2 w-full rounded-lg border border-edge-strong px-3 py-2 text-sm outline-none focus:border-kmutt-orange"
             />
 
             <label className="mt-4 block text-sm font-medium">
@@ -502,18 +597,20 @@ async function handleBulkUnarchive() {
               }
               rows={3}
               maxLength={500}
-              className="mt-2 w-full resize-none rounded-lg border px-3 py-2 text-sm outline-none focus:border-kmutt-orange"
+              className="mt-2 w-full resize-none rounded-lg border border-edge-strong px-3 py-2 text-sm outline-none focus:border-kmutt-orange"
             />
 
             <div className="mt-6 flex justify-end gap-2">
               <button
+                type="button"
                 disabled={pending}
                 onClick={() => setEditing(null)}
-                className="rounded-lg border px-4 py-2 text-sm"
+                className="rounded-lg border border-edge-strong px-4 py-2 text-sm hover:bg-cream disabled:opacity-50"
               >
                 ยกเลิก
               </button>
               <button
+                type="button"
                 disabled={pending || !editing.name.trim()}
                 onClick={handleSave}
                 className="rounded-lg bg-ink px-4 py-2 text-sm text-white disabled:opacity-50"
@@ -536,18 +633,76 @@ async function handleBulkUnarchive() {
 
             <div className="mt-6 flex justify-end gap-2">
               <button
+                type="button"
                 disabled={pending}
                 onClick={() => setConfirmArchive(null)}
-                className="rounded-lg border px-4 py-2 text-sm"
+                className="rounded-lg border border-edge-strong px-4 py-2 text-sm hover:bg-cream disabled:opacity-50"
               >
                 ยกเลิก
               </button>
               <button
+                type="button"
                 disabled={pending}
                 onClick={handleArchive}
-                className="rounded-lg bg-red-600 px-4 py-2 text-sm text-white disabled:opacity-50"
+                className="rounded-lg bg-amber-600 px-4 py-2 text-sm text-white hover:bg-amber-700 disabled:opacity-50"
               >
                 {pending ? "กำลังจัดเก็บ..." : "ยืนยันจัดเก็บ"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {confirmDeleteTargets.length > 0 && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="max-h-[calc(100dvh-2rem)] w-full max-w-sm overflow-y-auto rounded-xl bg-white p-6 shadow-xl">
+            <h2 className="text-lg font-semibold text-red-600">ลบห้องถาวร?</h2>
+            <p className="mt-2 text-sm text-ink-soft">
+              {confirmDeleteTargets.length === 1
+                ? `ห้อง "${confirmDeleteTargets[0].name}" พร้อมสมาชิก โพสต์ และรายงานทั้งหมดจะถูกลบถาวร และกู้คืนไม่ได้ ไม่ต้องรอรายงาน`
+                : `ห้องที่เลือก ${confirmDeleteTargets.length} ห้อง (${confirmDeleteTargets
+                    .slice(0, 3)
+                    .map((room) => `"${room.name}"`)
+                    .join(", ")}${
+                    confirmDeleteTargets.length > 3
+                      ? ` และอีก ${confirmDeleteTargets.length - 3} ห้อง`
+                      : ""
+                  }) พร้อมสมาชิก โพสต์ และรายงานทั้งหมดจะถูกลบถาวร และกู้คืนไม่ได้ ไม่ต้องรอรายงาน`}
+            </p>
+
+            <label
+              htmlFor="confirm-delete-room-input"
+              className="mt-4 block text-sm font-medium text-ink"
+            >
+              {confirmDeleteTargets.length === 1
+                ? "พิมพ์ชื่อห้องเพื่อยืนยัน"
+                : 'พิมพ์ "ลบถาวร" เพื่อยืนยัน'}
+            </label>
+            <input
+              id="confirm-delete-room-input"
+              value={deleteConfirmText}
+              onChange={(event) => setDeleteConfirmText(event.target.value)}
+              placeholder={requiredDeletePhrase}
+              disabled={pending}
+              className="mt-2 w-full rounded-lg border border-ink px-3 py-2 text-sm outline-none placeholder:text-ink-soft/60 focus:border-red-600 disabled:opacity-50"
+            />
+
+            <div className="mt-6 flex justify-end gap-2">
+              <button
+                type="button"
+                disabled={pending}
+                onClick={closeDeleteModal}
+                className="rounded-lg border border-ink bg-white px-4 py-2 text-sm text-ink hover:bg-cream disabled:opacity-50"
+              >
+                ยกเลิก
+              </button>
+              <button
+                type="button"
+                disabled={pending || !isDeleteConfirmed}
+                onClick={handleDeletePermanently}
+                className="rounded-lg bg-red-600 px-4 py-2 text-sm text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {pending ? "กำลังลบถาวร..." : "ยืนยันลบถาวร"}
               </button>
             </div>
           </div>
