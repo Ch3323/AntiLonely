@@ -5,7 +5,11 @@ import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { auth } from "@/lib/auth/auth";
 import { prisma } from "@/lib/shared/prisma";
-import { signalRoomChange } from "@/lib/rooms/room-live-notify";
+import { isUuid } from "@/lib/rooms/room-board";
+import {
+  signalLobbyChange,
+  signalRoomChange,
+} from "@/lib/rooms/room-live-notify";
 import { notifyRoomClosed } from "@/lib/rooms/report-service";
 
 async function checkRoomPermission() {
@@ -126,15 +130,6 @@ export async function archiveRoom(id: string) {
 // archiving this cannot be undone, so it is admin-only and does not need a
 // report to exist first.
 export async function deleteRoomPermanently(id: string) {
-  const session = await auth.api.getSession({ headers: await headers() });
-
-  if (!session || session.user.role !== "admin") {
-    return {
-      ok: false as const,
-      error: "เฉพาะผู้ดูแลระบบ (Admin) เท่านั้นที่ลบห้องถาวรได้",
-    };
-  }
-
   if (!id) {
     return {
       ok: false as const,
@@ -142,35 +137,9 @@ export async function deleteRoomPermanently(id: string) {
     };
   }
 
-  try {
-    const room = await prisma.room.findUnique({
-      where: { id },
-      select: { id: true },
-    });
-
-    if (!room) {
-      return {
-        ok: false as const,
-        error: "ไม่พบห้อง หรือห้องนี้ถูกลบไปแล้ว",
-      };
-    }
-
-    // Notify before deleting: the member list is gone afterwards.
-    await notifyRoomClosed(id, session.user.id);
-    await prisma.room.delete({ where: { id } });
-
-    revalidatePath("/admin/rooms");
-    revalidatePath("/admin/reports");
-    revalidatePath("/admin");
-    signalRoomChange({ roomId: id, board: true, wholeRoom: true });
-
-    return { ok: true as const };
-  } catch {
-    return {
-      ok: false as const,
-      error: "ไม่สามารถลบห้องได้ กรุณาลองใหม่",
-    };
-  }
+  const result = await deleteRoomsPermanently([id]);
+  if (!result.ok) return result;
+  return { ok: true as const };
 }
 
 export async function unarchiveRoom(id: string) {
@@ -211,6 +180,91 @@ export async function unarchiveRoom(id: string) {
     return {
       ok: false as const,
       error: "ไม่สามารถยกเลิกการจัดเก็บห้องได้ กรุณาลองใหม่",
+    };
+  }
+}
+
+export async function deleteRoomsPermanently(ids: string[]) {
+  const session = await auth.api.getSession({ headers: await headers() });
+
+  if (!session || session.user.role !== "admin") {
+    return {
+      ok: false as const,
+      error: "เฉพาะผู้ดูแลระบบ (Admin) เท่านั้นที่ลบห้องถาวรได้",
+    };
+  }
+
+  if (!Array.isArray(ids)) {
+    return {
+      ok: false as const,
+      error: "รายการห้องที่เลือกไม่ถูกต้อง",
+    };
+  }
+
+  const uniqueIds = [
+    ...new Set(
+      ids
+        .filter((id): id is string => typeof id === "string")
+        .map((id) => id.trim())
+        .filter((id) => isUuid(id))
+    ),
+  ];
+
+  if (uniqueIds.length === 0) {
+    return {
+      ok: false as const,
+      error: "รายการห้องที่เลือกไม่ถูกต้อง",
+    };
+  }
+
+  if (uniqueIds.length > 100) {
+    return {
+      ok: false as const,
+      error: "ลบห้องถาวรได้ครั้งละไม่เกิน 100 ห้อง",
+    };
+  }
+
+  try {
+    const existingRooms = await prisma.room.findMany({
+      where: { id: { in: uniqueIds } },
+      select: { id: true, slug: true },
+    });
+
+    if (existingRooms.length === 0) {
+      return {
+        ok: false as const,
+        error: "ไม่พบห้องที่ต้องการลบ",
+      };
+    }
+
+    // Notify before deleting: the member list is gone afterwards.
+    for (const room of existingRooms) {
+      await notifyRoomClosed(room.id, session.user.id);
+    }
+
+    const existingIds = existingRooms.map((room) => room.id);
+    const result = await prisma.room.deleteMany({
+      where: { id: { in: existingIds } },
+    });
+
+    revalidatePath("/admin/rooms");
+    revalidatePath("/admin");
+    revalidatePath("/admin/reports");
+    revalidatePath("/admin/logs");
+    revalidatePath("/");
+
+    for (const room of existingRooms) {
+      revalidatePath(`/rooms/${room.slug}`);
+      revalidatePath(`/rooms/${room.id}`);
+      signalRoomChange({ roomId: room.id, board: true, wholeRoom: true });
+    }
+    signalLobbyChange();
+
+    return { ok: true as const, deletedCount: result.count };
+  } catch {
+    return {
+      ok: false as const,
+      error: "ไม่สามารถลบห้องถาวรได้ กรุณาลองใหม่",
     };
   }
 }

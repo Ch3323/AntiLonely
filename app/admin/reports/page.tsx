@@ -6,6 +6,7 @@ import { getViewerSession } from "@/lib/shared/server-action-helpers";
 import { prisma } from "@/lib/shared/prisma";
 import { resolveAuthorAlias } from "@/lib/rooms/room-board";
 import { maskEmail } from "@/lib/admin/sanctions";
+import { parseReportReason } from "@/lib/admin/admin-logs";
 import AdminReports from "@/component/admin/AdminReports";
 
 export default function AdminReportsPage() {
@@ -117,26 +118,37 @@ if (role !== "admin" && role !== "moderator") {
       count: number;
       status: string;
       createdAt: Date;
-      reasonCounts: Map<string, number>;
+      reasonCounts: Map<string, { count: number; sample: string }>;
     }
   >();
 
   for (const report of reports) {
     const message = report.message;
     const messageId = report.messageId ?? `room:${report.roomId}`;
+    const parsedReason = parseReportReason(report.reason);
+    const reasonKey = parsedReason.key ?? report.reason.trim();
 
     const existing = groupedReports.get(messageId);
 
     if (existing) {
       existing.count += 1;
 
-      const currentReasonCount =
-        existing.reasonCounts.get(report.reason) ?? 0;
-
-      existing.reasonCounts.set(
-        report.reason,
-        currentReasonCount + 1,
-      );
+      const currentBucket = existing.reasonCounts.get(reasonKey);
+      if (currentBucket) {
+        currentBucket.count += 1;
+        // Preserve a detail-bearing sample if the latest report had none.
+        if (
+          !parseReportReason(currentBucket.sample).details &&
+          parsedReason.details
+        ) {
+          currentBucket.sample = report.reason;
+        }
+      } else {
+        existing.reasonCounts.set(reasonKey, {
+          count: 1,
+          sample: report.reason,
+        });
+      }
 
       // ใช้เวลารายงานล่าสุด
       if (report.createdAt > existing.createdAt) {
@@ -172,7 +184,7 @@ if (role !== "admin" && role !== "moderator") {
         count: 1,
         status: report.status,
         createdAt: report.createdAt,
-        reasonCounts: new Map([[report.reason, 1]]),
+        reasonCounts: new Map([[reasonKey, { count: 1, sample: report.reason }]]),
       });
     }
   }
@@ -181,8 +193,8 @@ if (role !== "admin" && role !== "moderator") {
   const reportRows = Array.from(groupedReports.values()).map(
     (item) => {
       // เลือกเหตุผลที่มีผู้รายงานมากที่สุด
-      const mainReason = Array.from(item.reasonCounts.entries())
-        .sort((a, b) => b[1] - a[1])[0]?.[0] ?? item.reason;
+      const mainReason = Array.from(item.reasonCounts.values())
+        .sort((a, b) => b.count - a.count)[0]?.sample ?? item.reason;
 
       return {
         messageId: item.messageId,

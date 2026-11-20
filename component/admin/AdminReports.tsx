@@ -11,6 +11,11 @@ import {
   dismissReports,
   deleteReportedMessages,
 } from "@/app/admin/reports/actions";
+import {
+  REPORT_REASON_LABELS,
+  getReportReasonLabel,
+  parseReportReason,
+} from "@/lib/admin/admin-logs";
 
 type ReportRow = {
   // Row key: a message id, or "room:<id>" when the whole room was reported.
@@ -36,21 +41,61 @@ type AdminReportsProps = {
 
 type StatusFilter = "pending" | "resolved" | "dismissed";
 
-const REASONS = [
-  { value: "harassment", label: "คุกคาม", color: "bg-red-50 text-red-600" },
-  { value: "spam", label: "สแปม", color: "bg-yellow-50 text-yellow-700" },
-  { value: "image", label: "ภาพไม่เหมาะสม", color: "bg-red-50 text-red-600" },
-  { value: "bully", label: "กลั่นแกล้ง", color: "bg-red-50 text-red-600" },
-  { value: "other", label: "อื่นๆ", color: "bg-butter text-ink-soft" },
+const REASONS: {
+  value: string;
+  label: string;
+  color: string;
+  legacy?: boolean;
+}[] = [
+  {
+    value: "inappropriate",
+    label: REPORT_REASON_LABELS.inappropriate,
+    color: "bg-red-50 text-red-600",
+  },
+  {
+    value: "spam",
+    label: REPORT_REASON_LABELS.spam,
+    color: "bg-yellow-50 text-yellow-700",
+  },
+  {
+    value: "misinformation",
+    label: REPORT_REASON_LABELS.misinformation,
+    color: "bg-orange-50 text-orange-700",
+  },
+  {
+    value: "harassment",
+    label: REPORT_REASON_LABELS.harassment,
+    color: "bg-red-50 text-red-600",
+    legacy: true,
+  },
+  {
+    value: "image",
+    label: REPORT_REASON_LABELS.image,
+    color: "bg-red-50 text-red-600",
+    legacy: true,
+  },
+  {
+    value: "bully",
+    label: REPORT_REASON_LABELS.bully,
+    color: "bg-red-50 text-red-600",
+    legacy: true,
+  },
+  {
+    value: "other",
+    label: REPORT_REASON_LABELS.other,
+    color: "bg-butter text-ink-soft",
+  },
 ];
 
-function getReasonLabel(reason: string) {
-  return REASONS.find((item) => item.value === reason)?.label ?? reason;
+const REASON_BY_KEY = new Map(REASONS.map((item) => [item.value, item]));
+
+function getReasonKey(reason: string) {
+  return parseReportReason(reason).key ?? reason.trim();
 }
 
 function getReasonColor(reason: string) {
   return (
-    REASONS.find((item) => item.value === reason)?.color ??
+    REASON_BY_KEY.get(getReasonKey(reason))?.color ??
     "bg-butter text-ink-soft"
   );
 }
@@ -101,16 +146,28 @@ export default function AdminReports({
 
   // จำนวนรายงานแยกตามเหตุผล (นับจำนวนผู้รายงาน)
   const reasonCounts = useMemo(() => {
-    const counts: Record<string, number> = {};
+    const counts: Record<string, number> = Object.create(null);
 
     for (const item of reports) {
       if (item.status === status) {
-        counts[item.reason] = (counts[item.reason] ?? 0) + item.count;
+        const key = getReasonKey(item.reason);
+        counts[key] = (counts[key] ?? 0) + item.count;
       }
     }
 
     return counts;
   }, [reports, status]);
+
+  const visibleReasonFilters = useMemo(
+    () =>
+      REASONS.filter(
+        (item) =>
+          !item.legacy ||
+          (reasonCounts[item.value] ?? 0) > 0 ||
+          reason === item.value,
+      ),
+    [reasonCounts, reason],
+  );
 
   // ค้นหาและกรองข้อมูล
   const filteredReports = useMemo(() => {
@@ -120,7 +177,7 @@ export default function AdminReports({
       const matchStatus = item.status === status;
 
       const matchReason =
-        reason === "all" || item.reason === reason;
+        reason === "all" || getReasonKey(item.reason) === reason;
 
       const matchSearch =
         !keyword ||
@@ -291,7 +348,7 @@ export default function AdminReports({
           ทุกเหตุผล
         </button>
 
-        {REASONS.map((item) => (
+        {visibleReasonFilters.map((item) => (
           <button
             key={item.value}
             type="button"
@@ -373,6 +430,10 @@ export default function AdminReports({
           <tbody className="divide-y divide-gray-200 text-sm">
             {filteredReports.map((item) => {
               const isPending = item.status === "pending";
+              const parsedReason = parseReportReason(item.reason);
+              const reasonBadgeLabel = parsedReason.key
+                ? (REASON_BY_KEY.get(parsedReason.key)?.label ?? parsedReason.key)
+                : getReportReasonLabel(item.reason);
 
               return (
                 <tr key={item.messageId} className="hover:bg-butter">
@@ -397,10 +458,18 @@ export default function AdminReports({
 
                   <td className="px-4 py-4">
                     <span
-                      className={`whitespace-nowrap rounded-full px-2 py-1 text-xs ${getReasonColor(item.reason)}`}
+                      className={`inline-block whitespace-nowrap rounded-full px-2 py-1 text-xs ${getReasonColor(item.reason)}`}
                     >
-                      {getReasonLabel(item.reason)}
+                      {reasonBadgeLabel}
                     </span>
+                    {parsedReason.details && (
+                      <p
+                        className="mt-1 max-w-[200px] truncate text-xs text-ink-soft"
+                        title={parsedReason.details}
+                      >
+                        {parsedReason.details}
+                      </p>
+                    )}
                   </td>
 
                   <td className="px-4 py-4 font-semibold text-ink">
@@ -516,8 +585,8 @@ export default function AdminReports({
 
               <div>
                 <p className="text-xs text-ink-soft">เหตุผลหลัก</p>
-                <p className="mt-1 text-ink">
-                  {getReasonLabel(detail.reason)}
+                <p className="mt-1 whitespace-pre-wrap text-ink">
+                  {getReportReasonLabel(detail.reason)}
                 </p>
               </div>
 
