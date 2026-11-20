@@ -318,12 +318,12 @@ const PostCard = memo(function PostCard({
               )}
               {staffRole && (
                 <>
-                  <StaffMenuLabel role={staffRole} />
+                  <StaffMenuLabel />
                   <StaffMenuLink
                     href="/admin/reports"
                     onNavigate={() => setIsMenuOpen(false)}
                   >
-                    ดูรายงานในแผงแอดมิน
+                    ดูรายงาน
                   </StaffMenuLink>
                 </>
               )}

@@ -249,12 +249,12 @@ export const CommentItem = memo(function CommentItem({
             )}
             {staffRole && (
               <>
-                <StaffMenuLabel role={staffRole} />
+                <StaffMenuLabel />
                 <StaffMenuLink
                   href="/admin/reports"
                   onNavigate={() => setOpenMenuId(null)}
                 >
-                  ดูรายงานในแผงแอดมิน
+                  ดูรายงาน
                 </StaffMenuLink>
               </>
             )}

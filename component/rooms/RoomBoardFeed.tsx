@@ -20,6 +20,7 @@ import RoomOnlineChip from "@/component/rooms/RoomOnlineChip";
 import RoomPasswordModal from "@/component/rooms/RoomPasswordModal";
 import { ReportModal } from "@/component/post-thread/ReportModal";
 import {
+  StaffIcon,
   StaffMenuLabel,
   StaffMenuLink,
   type StaffRole,
@@ -1121,22 +1122,21 @@ export default function RoomBoardFeed({
 
                   {staffRole && (
                     <>
-                      <StaffMenuLabel role={staffRole} />
+                      <StaffMenuLabel />
                       <StaffMenuLink
                         href="/admin/rooms"
                         onNavigate={() => setIsRoomMenuOpen(false)}
                       >
-                        จัดการห้องในแผงแอดมิน
+                        จัดการห้อง
                       </StaffMenuLink>
                       <button
                         type="button"
                         role="menuitem"
                         onClick={handleStaffDeleteRoom}
-                        className="w-full cursor-pointer rounded-lg px-3 py-2 text-left text-red-700 hover:bg-red-50 motion-safe:transition-colors"
+                        className="flex w-full cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-left text-red-700 hover:bg-red-50 motion-safe:transition-colors"
                       >
-                        {staffRole === "admin"
-                          ? "ลบห้องถาวร (ไม่ต้องรอรายงาน)"
-                          : "จัดเก็บห้อง (ไม่ต้องรอรายงาน)"}
+                        <StaffIcon />
+                        {staffRole === "admin" ? "ลบห้องถาวร" : "จัดเก็บห้อง"}
                       </button>
                     </>
                   )}

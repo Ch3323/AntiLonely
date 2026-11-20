@@ -1,20 +1,19 @@
 import Link from "next/link";
+import Icon from "@/component/ui/Icon";
 
 export type StaffRole = "admin" | "moderator";
 
 const itemClass =
-  "w-full cursor-pointer rounded-md px-2.5 py-2 text-left text-xs font-medium text-ink hover:bg-butter motion-safe:transition-colors sm:text-[13px]";
+  "flex w-full cursor-pointer items-center gap-2 rounded-md px-2.5 py-2 text-left text-xs font-medium text-ink hover:bg-butter motion-safe:transition-colors sm:text-[13px]";
 
-// Divider and heading that open the staff-only part of a dropdown menu.
-export function StaffMenuLabel({ role }: { role: StaffRole }) {
-  return (
-    <>
-      <div className="my-1 border-t-[1.5px] border-dashed border-edge" />
-      <div className="px-2.5 pb-1 pt-0.5 text-[11px] font-semibold text-kmutt-orange">
-        {role === "admin" ? "สำหรับผู้ดูแลระบบ" : "สำหรับผู้ช่วยดูแล"}
-      </div>
-    </>
-  );
+// Shield that marks a menu entry as staff-only, placed before its label.
+export function StaffIcon() {
+  return <Icon name="shield" className="size-3.5 text-kmutt-orange" />;
+}
+
+// Divider that opens the staff-only part of a dropdown menu.
+export function StaffMenuLabel() {
+  return <div className="my-1 border-t-[1.5px] border-dashed border-edge" />;
 }
 
 // A menu entry that jumps to a page of the admin panel.
@@ -28,12 +27,8 @@ export function StaffMenuLink({
   children: React.ReactNode;
 }) {
   return (
-    <Link
-      href={href}
-      role="menuitem"
-      onClick={onNavigate}
-      className={`block ${itemClass}`}
-    >
+    <Link href={href} role="menuitem" onClick={onNavigate} className={itemClass}>
+      <StaffIcon />
       {children}
     </Link>
   );

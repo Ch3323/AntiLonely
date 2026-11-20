@@ -291,6 +291,7 @@ export async function getRoomBoardData(
         roomId: msg.roomId,
         content: msg.content,
         createdAt: msg.createdAt,
+        editedAt: msg.editedAt,
         authorId: msg.authorId,
         author: msg.author,
         reactions: msg.reactions,
