@@ -45,6 +45,15 @@ export const getViewerSession = cache(async () => {
   }
 });
 
+export type StaffRole = 'admin' | 'moderator';
+
+// The site-wide role of the viewer when they are staff, else null. Staff get
+// moderation options in every room without being its owner.
+export const getViewerStaffRole = cache(async (): Promise<StaffRole | null> => {
+  const role = (await getViewerSession())?.user?.role;
+  return role === 'admin' || role === 'moderator' ? role : null;
+});
+
 export const getViewerUser = cache(async () => {
   try {
     const session = await getViewerSession();

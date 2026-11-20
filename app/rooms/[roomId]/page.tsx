@@ -76,6 +76,7 @@ async function RoomBoardFeedContent({ params, searchParams }: Props) {
         currentUser={data.currentUser}
         canModerate={data.canModerate}
         canManage={data.canManage}
+        staffRole={data.staffRole}
         myRooms={data.myRooms}
         serverTime={data.serverTime}
         presence={presence}

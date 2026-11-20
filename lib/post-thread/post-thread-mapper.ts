@@ -21,6 +21,7 @@ export interface DbThreadMessageRow {
   content: string;
   status: 'visible' | 'hidden' | 'deleted';
   createdAt: Date;
+  editedAt?: Date | null;
   authorId: string | null;
   author: DbAuthorSnapshot | null;
   reactions: readonly DbReactionRow[];
@@ -182,6 +183,7 @@ export function buildPostThreadFromMessages(input: {
         ...(replyTo ? { replyTo } : {}),
         isPostAuthor: Boolean(post.authorId && replyMsg.authorId === post.authorId),
         content: replyMsg.content,
+        ...(replyMsg.editedAt ? { isEdited: true } : {}),
         createdAt: replyMsg.createdAt.toISOString(),
         reactions: aggregateReactions(replyMsg.reactions, currentUserId),
       };
@@ -192,6 +194,7 @@ export function buildPostThreadFromMessages(input: {
       author: commentAuthor,
       isPostAuthor: Boolean(post.authorId && comment.authorId === post.authorId),
       content: comment.content,
+      ...(comment.editedAt ? { isEdited: true } : {}),
       createdAt: comment.createdAt.toISOString(),
       reactions: aggregateReactions(comment.reactions, currentUserId),
       replies,
@@ -204,6 +207,7 @@ export function buildPostThreadFromMessages(input: {
     boardName: room.name,
     author: toThreadAuthor(post.authorId, post.author),
     content: post.content,
+    ...(post.editedAt ? { isEdited: true } : {}),
     createdAt: post.createdAt.toISOString(),
     reactions: aggregateReactions(post.reactions, currentUserId),
     comments: mappedComments,

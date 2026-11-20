@@ -281,6 +281,8 @@ model Message {
   content   String
   status    MessageStatus @default(visible)
   createdAt DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  // Set when the author edits the content; null for never-edited messages.
+  editedAt  DateTime?     @map("edited_at") @db.Timestamptz(6)
   // Nullable so threads survive if the author's account is deleted.
   authorId  String?       @map("author_id") @db.Uuid
   roomId    String        @map("room_id") @db.Uuid

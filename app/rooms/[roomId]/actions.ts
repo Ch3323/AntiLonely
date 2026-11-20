@@ -14,7 +14,9 @@ import {
 } from '@/lib/rooms/room-permissions';
 import {
   formatReportReason,
+  getViewerStaffRole,
   getViewerUser,
+  type StaffRole,
   runSafeMutation,
   VALID_REPORT_REASONS,
   type ActionResult,
@@ -71,6 +73,8 @@ export interface RoomBoardData {
   canModerate: boolean;
   // Owner: may edit the room, remove members and delete the room.
   canManage: boolean;
+  // Site-wide admin or moderator: gets extra options in menus.
+  staffRole: StaffRole | null;
   currentUser: RoomBoardViewer | null;
   myRooms: MyRoom[];
   serverTime: string;
@@ -320,6 +324,7 @@ export async function getRoomBoardData(
     userId: viewer?.id,
     membership: viewerMembership,
   });
+  const staffRole = viewer ? await getViewerStaffRole() : null;
 
   return {
     room: mappedRoom,
@@ -331,8 +336,9 @@ export async function getRoomBoardData(
       totalPosts,
       sort,
     },
-    canModerate: canModerateRoom(role),
+    canModerate: canModerateRoom(role) || staffRole !== null,
     canManage: canManageRoom(role),
+    staffRole,
     currentUser,
     myRooms,
     serverTime: now.toISOString(),
@@ -497,7 +503,7 @@ export async function updateRoomPost(input: {
 
     const updated = await prisma.message.update({
       where: { id: existing.id },
-      data: { content: validated.value },
+      data: { content: validated.value, editedAt: new Date() },
       include: {
         author: {
           select: {

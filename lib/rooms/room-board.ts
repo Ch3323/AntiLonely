@@ -399,6 +399,7 @@ export interface DbMessageRow {
   roomId: string;
   content: string;
   createdAt: Date;
+  editedAt?: Date | null;
   authorId: string | null;
   author: DbAuthorSnapshot | null;
   reactions: readonly DbReactionRow[];
@@ -423,6 +424,7 @@ export function mapDbPostToBoardPost(
     createdAtOffsetMs,
     timeLabel: formatRelativeTimeThai(createdAtIso, nowMs),
     content: message.content,
+    ...(message.editedAt ? { isEdited: true } : {}),
     reactions: aggregateReactions(message.reactions, currentUserId),
     replyCount: Math.max(0, message.replyCount),
   };

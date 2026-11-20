@@ -58,6 +58,7 @@ async function PostThreadContent({ params }: PostThreadPageProps) {
         canComment={data.canComment}
         canReact={data.canReact}
         canModerate={data.canModerate}
+        staffRole={data.staffRole}
         initialThread={data.thread}
         currentUser={data.currentUser}
         myRooms={data.myRooms}

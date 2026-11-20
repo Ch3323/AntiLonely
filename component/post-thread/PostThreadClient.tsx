@@ -49,6 +49,7 @@ import {
 } from '@/app/rooms/[roomId]/posts/[postId]/actions';
 import Header from '@/component/layout/Header';
 import { PostCard } from './PostCard';
+import type { StaffRole } from '@/component/admin/StaffMenuLabel';
 import { ReplyComposer } from './ReplyComposer';
 import { CommentItem } from './CommentItem';
 import { ReportModal } from './ReportModal';
@@ -71,6 +72,8 @@ interface PostThreadClientProps {
   canComment: boolean;
   canReact: boolean;
   canModerate?: boolean;
+  // Site admin or moderator: menus show the staff-only options.
+  staffRole?: StaffRole | null;
   initialThread: PostThread;
   currentUser: {
     id: string;
@@ -166,6 +169,7 @@ export function PostThreadClient({
   canComment,
   canReact,
   canModerate = false,
+  staffRole = null,
   initialThread,
   currentUser,
   myRooms,
@@ -930,6 +934,7 @@ export function PostThreadClient({
           isMuted={isMuted}
           isOwner={isPostOwner}
           canDelete={canDeletePost}
+          staffRole={staffRole}
           onToggleReaction={handleTogglePostReaction}
           onReplyClick={handleReplyClick}
           onShareClick={handleCopyOrShare}
@@ -1066,6 +1071,7 @@ export function PostThreadClient({
                 currentUserId={currentUser?.id ?? ''}
                 currentUserName={currentUser?.alias ?? 'ผู้เยี่ยมชม'}
                 canModerate={canModerate}
+                staffRole={staffRole}
                 isExpanded={expandedCommentIds.includes(comment.id)}
                 isReplying={replyingTo?.commentId === comment.id}
                 activeReplyTargetName={
