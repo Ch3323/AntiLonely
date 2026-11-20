@@ -197,6 +197,9 @@ model Notification {
   roomId     String?          @map("room_id") @db.Uuid
   postId     String?          @map("post_id") @db.Uuid
   messageId  String?          @map("message_id") @db.Uuid
+  // What a report notice is about: "resolved", "dismissed" or "room_closed"
+  // (null: the receipt for a report just filed).
+  detail     String?
 
   user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   actor    User?     @relation("NotificationActor", fields: [actorId], references: [id], onDelete: SetNull)
@@ -278,6 +281,8 @@ model Message {
   content   String
   status    MessageStatus @default(visible)
   createdAt DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  // Set when the author edits the content; null for never-edited messages.
+  editedAt  DateTime?     @map("edited_at") @db.Timestamptz(6)
   // Nullable so threads survive if the author's account is deleted.
   authorId  String?       @map("author_id") @db.Uuid
   roomId    String        @map("room_id") @db.Uuid
@@ -321,14 +326,16 @@ model Report {
   createdAt  DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
   // Nullable so the report survives if the reporter's account is deleted.
   reporterId String?      @map("reporter_id") @db.Uuid
-  messageId  String       @map("message_id") @db.Uuid
+  // Null when the whole room is reported rather than one message.
+  messageId  String?      @map("message_id") @db.Uuid
   roomId     String       @map("room_id") @db.Uuid
 
-  reporter User?   @relation(fields: [reporterId], references: [id], onDelete: SetNull)
-  message  Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
-  room     Room    @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  reporter User?    @relation(fields: [reporterId], references: [id], onDelete: SetNull)
+  message  Message? @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  room     Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
 
-  // A user can report the same message only once.
+  // A user can report the same message only once (room reports, which have no
+  // message, are de-duplicated in code: NULLs never collide here).
   @@unique([reporterId, messageId])
   @@index([messageId])
   @@index([roomId])

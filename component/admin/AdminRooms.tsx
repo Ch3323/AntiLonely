@@ -21,6 +21,7 @@ type Room = {
 };
 
 type Props = {
+  canDelete: boolean;
   rooms: Room[];
   summary: {
     total: number;
@@ -63,7 +64,7 @@ function formatNumber(value: number) {
   return value.toLocaleString("en-US");
 }
 
-export default function AdminRooms({ rooms, summary }: Props) {
+export default function AdminRooms({ rooms, summary, canDelete }: Props) {
   const [tab, setTab] = useState<Tab>("all");
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<string[]>([]);
@@ -412,14 +413,16 @@ async function handleBulkUnarchive() {
                 จัดเก็บที่เลือก
               </button>
             )}
-            <button
-              type="button"
-              disabled={pending}
-              onClick={() => openDeleteModal(selectedRooms)}
-              className="rounded-md bg-red-600 px-3 py-1.5 text-white hover:bg-red-700 disabled:opacity-50"
-            >
-              ลบถาวร
-            </button>
+            {canDelete && (
+              <button
+                type="button"
+                disabled={pending}
+                onClick={() => openDeleteModal(selectedRooms)}
+                className="rounded-md bg-red-600 px-3 py-1.5 text-white hover:bg-red-700 disabled:opacity-50"
+              >
+                ลบถาวร
+              </button>
+            )}
           </div>
         </div>
       )}
@@ -532,14 +535,16 @@ async function handleBulkUnarchive() {
                         จัดเก็บ
                       </button>
                     )}
-                    <button
-                      type="button"
-                      disabled={pending}
-                      onClick={() => openDeleteModal([room])}
-                      className="rounded-lg border border-red-300 px-3 py-2 text-xs font-medium text-red-500 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-40"
-                    >
-                      ลบถาวร
-                    </button>
+                    {canDelete && (
+                      <button
+                        type="button"
+                        disabled={pending}
+                        onClick={() => openDeleteModal([room])}
+                        className="rounded-lg border border-red-300 px-3 py-2 text-xs font-medium text-red-500 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-40"
+                      >
+                        ลบถาวร
+                      </button>
+                    )}
                   </div>
                 </td>
               </tr>

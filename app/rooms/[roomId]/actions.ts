@@ -5,6 +5,7 @@ import type { Prisma } from '@/lib/generated/prisma/client';
 import { prisma } from '@/lib/shared/prisma';
 import { toggleMessageReaction } from '@/lib/post-thread/reaction-service';
 import { signalRoomChange } from '@/lib/rooms/room-live-notify';
+import { submitReport } from '@/lib/rooms/report-service';
 import {
   canManageRoom,
   canModerateRoom,
@@ -13,7 +14,9 @@ import {
 } from '@/lib/rooms/room-permissions';
 import {
   formatReportReason,
+  getViewerStaffRole,
   getViewerUser,
+  type StaffRole,
   runSafeMutation,
   VALID_REPORT_REASONS,
   type ActionResult,
@@ -70,6 +73,8 @@ export interface RoomBoardData {
   canModerate: boolean;
   // Owner: may edit the room, remove members and delete the room.
   canManage: boolean;
+  // Site-wide admin or moderator: gets extra options in menus.
+  staffRole: StaffRole | null;
   currentUser: RoomBoardViewer | null;
   myRooms: MyRoom[];
   serverTime: string;
@@ -286,6 +291,7 @@ export async function getRoomBoardData(
         roomId: msg.roomId,
         content: msg.content,
         createdAt: msg.createdAt,
+        editedAt: msg.editedAt,
         authorId: msg.authorId,
         author: msg.author,
         reactions: msg.reactions,
@@ -319,6 +325,7 @@ export async function getRoomBoardData(
     userId: viewer?.id,
     membership: viewerMembership,
   });
+  const staffRole = viewer ? await getViewerStaffRole() : null;
 
   return {
     room: mappedRoom,
@@ -330,8 +337,9 @@ export async function getRoomBoardData(
       totalPosts,
       sort,
     },
-    canModerate: canModerateRoom(role),
+    canModerate: canModerateRoom(role) || staffRole !== null,
     canManage: canManageRoom(role),
+    staffRole,
     currentUser,
     myRooms,
     serverTime: now.toISOString(),
@@ -496,7 +504,7 @@ export async function updateRoomPost(input: {
 
     const updated = await prisma.message.update({
       where: { id: existing.id },
-      data: { content: validated.value },
+      data: { content: validated.value, editedAt: new Date() },
       include: {
         author: {
           select: {
@@ -770,6 +778,15 @@ export async function reportRoomTarget(input: {
       return { ok: false, error: 'เหตุผลการรายงานไม่ถูกต้อง' };
     }
 
+    const room = await prisma.room.findUnique({
+      where: { id: input.roomId },
+      select: { status: true, creatorId: true },
+    });
+    if (!room || room.status !== 'active') {
+      return { ok: false, error: 'ไม่พบห้องที่ต้องการรายงาน' };
+    }
+
+    // No postId: the whole room is being reported, not a message in it.
     let targetMessageId: string | null = null;
     if (input.postId) {
       if (!isUuid(input.postId)) {
@@ -791,45 +808,16 @@ export async function reportRoomTarget(input: {
         return { ok: false, error: 'ไม่สามารถรายงานกระทู้ของตนเองได้' };
       }
       targetMessageId = post.id;
-    } else {
-      const latestPost = await prisma.message.findFirst({
-        where: {
-          roomId: input.roomId,
-          status: 'visible',
-          room: { status: 'active' },
-        },
-        orderBy: { createdAt: 'desc' },
-        select: { id: true, authorId: true },
-      });
-      if (!latestPost) {
-        return {
-          ok: false,
-          error: 'ยังไม่มีข้อความในห้องนี้ให้แนบในรายงาน',
-        };
-      }
-      targetMessageId = latestPost.id;
+    } else if (room.creatorId === viewer.id) {
+      return { ok: false, error: 'ไม่สามารถรายงานห้องของตนเองได้' };
     }
 
-    const formattedReason = formatReportReason(input.reason, input.details);
-
-    await prisma.report.upsert({
-      where: {
-        reporterId_messageId: {
-          reporterId: viewer.id,
-          messageId: targetMessageId,
-        },
-      },
-      create: {
-        reporterId: viewer.id,
-        messageId: targetMessageId,
-        roomId: input.roomId,
-        reason: formattedReason,
-        status: 'pending',
-      },
-      update: {
-        reason: formattedReason,
-        status: 'pending',
-      },
+    await submitReport({
+      reporterId: viewer.id,
+      roomId: input.roomId,
+      messageId: targetMessageId,
+      postId: targetMessageId,
+      reason: formatReportReason(input.reason, input.details),
     });
 
     return { ok: true, data: { reported: true } };

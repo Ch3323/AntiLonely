@@ -19,6 +19,16 @@ import PostCard from "@/component/rooms/PostCard";
 import RoomOnlineChip from "@/component/rooms/RoomOnlineChip";
 import RoomPasswordModal from "@/component/rooms/RoomPasswordModal";
 import { ReportModal } from "@/component/post-thread/ReportModal";
+import {
+  StaffIcon,
+  StaffMenuLabel,
+  StaffMenuLink,
+  type StaffRole,
+} from "@/component/admin/StaffMenuLabel";
+import {
+  archiveRoom,
+  deleteRoomPermanently,
+} from "@/app/admin/rooms/actions";
 import { formatCount } from "@/lib/shared/format";
 import {
   applyReactionActiveState,
@@ -98,6 +108,8 @@ type Props = {
   canModerate?: boolean;
   // Owner: may edit the room, remove members and delete it.
   canManage?: boolean;
+  // Site admin or moderator: the room menu shows the staff-only options.
+  staffRole?: StaffRole | null;
   myRooms?: MyRoom[];
   serverTime?: string;
   presence?: RoomPresenceConfig | null;
@@ -246,6 +258,7 @@ type BoardPostRowProps = {
   referenceTime: number;
   currentUserId: string | null;
   canModerate: boolean;
+  staffRole: StaffRole | null;
   onEditPost: (postId: string, newContent: string) => void;
   onDeletePost: (postId: string) => void;
   onToggleReaction: (postId: string, emoji: string) => Promise<boolean>;
@@ -263,6 +276,7 @@ const BoardPostRow = memo(function BoardPostRow({
   referenceTime,
   currentUserId,
   canModerate,
+  staffRole,
   onEditPost,
   onDeletePost,
   onToggleReaction,
@@ -307,6 +321,7 @@ const BoardPostRow = memo(function BoardPostRow({
       isOwner={Boolean(currentUserId && post.authorId === currentUserId)}
       canModerate={canModerate}
       isEdited={post.isEdited}
+      staffRole={staffRole}
       reactions={post.reactions}
       replyCount={post.replyCount}
       onEditPost={handleEdit}
@@ -326,6 +341,7 @@ export default function RoomBoardFeed({
   currentUser = null,
   canModerate = false,
   canManage = false,
+  staffRole = null,
   myRooms = [],
   serverTime,
   presence = null,
@@ -787,6 +803,42 @@ export default function RoomBoardFeed({
     }
   }
 
+  // Staff remove a room from its own menu, no report needed. Admins erase it
+  // for good (they must type the name); moderators can only archive it.
+  async function handleStaffDeleteRoom() {
+    setIsRoomMenuOpen(false);
+    if (!staffRole) return;
+
+    const permanent = staffRole === "admin";
+    if (permanent) {
+      const typed = window.prompt(
+        `ลบห้อง "${room.name}" ถาวร กู้คืนไม่ได้\nพิมพ์ชื่อห้องเพื่อยืนยัน`
+      );
+      if (typed === null) return;
+      if (typed.trim() !== room.name) {
+        showToast("ชื่อห้องไม่ตรงกัน ยกเลิกการลบ");
+        return;
+      }
+    } else if (
+      !window.confirm(`จัดเก็บห้อง "${room.name}" ใช่หรือไม่?`)
+    ) {
+      return;
+    }
+
+    try {
+      const result = permanent
+        ? await deleteRoomPermanently(room.id)
+        : await archiveRoom(room.id);
+      if (!result.ok) {
+        showToast(result.error);
+        return;
+      }
+      router.push("/");
+    } catch {
+      showToast("ไม่สามารถลบห้องได้ กรุณาลองใหม่อีกครั้ง");
+    }
+  }
+
   async function handleCopyRoomLink() {
     setIsRoomMenuOpen(false);
     try {
@@ -1067,6 +1119,27 @@ export default function RoomBoardFeed({
                   >
                     รายงานห้อง
                   </button>
+
+                  {staffRole && (
+                    <>
+                      <StaffMenuLabel />
+                      <StaffMenuLink
+                        href="/admin/rooms"
+                        onNavigate={() => setIsRoomMenuOpen(false)}
+                      >
+                        จัดการห้อง
+                      </StaffMenuLink>
+                      <button
+                        type="button"
+                        role="menuitem"
+                        onClick={handleStaffDeleteRoom}
+                        className="flex w-full cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-left text-red-700 hover:bg-red-50 motion-safe:transition-colors"
+                      >
+                        <StaffIcon />
+                        {staffRole === "admin" ? "ลบห้องถาวร" : "จัดเก็บห้อง"}
+                      </button>
+                    </>
+                  )}
                 </div>
               )}
             </div>
@@ -1195,6 +1268,7 @@ export default function RoomBoardFeed({
                 referenceTime={referenceTime}
                 currentUserId={currentUser?.id ?? null}
                 canModerate={canModerate}
+                staffRole={staffRole}
                 onEditPost={handleEditPost}
                 onDeletePost={handleDeletePost}
                 onToggleReaction={handleTogglePostReaction}

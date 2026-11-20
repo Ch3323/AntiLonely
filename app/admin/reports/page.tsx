@@ -58,6 +58,22 @@ if (role !== "admin" && role !== "moderator") {
   // 2. ดึงรายงานจาก Database
   const reports = await prisma.report.findMany({
     include: {
+      // A report with no message is about the room itself.
+      room: {
+        select: {
+          name: true,
+          creator: {
+            select: {
+              id: true,
+              username: true,
+              displayUsername: true,
+              name: true,
+              email: true,
+              role: true,
+            },
+          },
+        },
+      },
       message: {
         include: {
           room: {
@@ -88,7 +104,9 @@ if (role !== "admin" && role !== "moderator") {
   const groupedReports = new Map<
     string,
     {
+      // Row key: the message id, or "room:<id>" for a report about a room.
       messageId: string;
+      kind: "message" | "room";
       content: string;
       room: string;
       author: string;
@@ -105,7 +123,7 @@ if (role !== "admin" && role !== "moderator") {
 
   for (const report of reports) {
     const message = report.message;
-    const messageId = report.messageId;
+    const messageId = report.messageId ?? `room:${report.roomId}`;
 
     const existing = groupedReports.get(messageId);
 
@@ -125,16 +143,31 @@ if (role !== "admin" && role !== "moderator") {
         existing.createdAt = report.createdAt;
       }
     } else {
+      const target = message
+        ? {
+            kind: "message" as const,
+            content: message.content,
+            room: message.room.name,
+            author: message.author,
+          }
+        : {
+            kind: "room" as const,
+            content: `[รายงานห้อง] ${report.room.name}`,
+            room: report.room.name,
+            author: report.room.creator,
+          };
+
       groupedReports.set(messageId, {
         messageId,
-        content: message.content,
-        room: message.room.name,
-        author: message.author
-          ? resolveAuthorAlias(message.author)
+        kind: target.kind,
+        content: target.content,
+        room: target.room,
+        author: target.author
+          ? resolveAuthorAlias(target.author)
           : "ไม่ทราบผู้เขียน",
-        authorId: message.author?.id ?? null,
-        authorEmail: message.author?.email ? maskEmail(message.author.email) : null,
-        authorRole: message.author?.role ?? null,
+        authorId: target.author?.id ?? null,
+        authorEmail: target.author?.email ? maskEmail(target.author.email) : null,
+        authorRole: target.author?.role ?? null,
         reason: report.reason,
         count: 1,
         status: report.status,
@@ -153,6 +186,7 @@ if (role !== "admin" && role !== "moderator") {
 
       return {
         messageId: item.messageId,
+        kind: item.kind,
         content: item.content,
         room: item.room,
         author: item.author,

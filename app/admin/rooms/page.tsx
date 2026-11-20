@@ -113,5 +113,11 @@ async function AdminRoomsData() {
     archived: rooms.filter((room) => room.status === "archived").length,
   };
 
-  return <AdminRooms rooms={roomRows} summary={summary} />;
+  return (
+    <AdminRooms
+      rooms={roomRows}
+      summary={summary}
+      canDelete={role === "admin"}
+    />
+  );
 }

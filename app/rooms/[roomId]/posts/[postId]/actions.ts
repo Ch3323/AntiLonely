@@ -9,10 +9,13 @@ import {
   resolveRoomRoleFromRecords,
 } from '@/lib/rooms/room-permissions';
 import { toggleMessageReaction } from '@/lib/post-thread/reaction-service';
+import { submitReport } from '@/lib/rooms/report-service';
 import {
   formatReportReason,
+  getViewerStaffRole,
   getViewerUser,
   runSafeMutation,
+  type StaffRole,
   VALID_REPORT_REASONS,
   type ActionResult,
 } from '@/lib/shared/server-action-helpers';
@@ -61,6 +64,8 @@ export interface PostThreadPageData {
   canReact: boolean;
   // Owner or moderator of the room: may delete other people's comments.
   canModerate: boolean;
+  // Site-wide admin or moderator: gets extra options in menus.
+  staffRole: StaffRole | null;
   thread: PostThread;
   currentUser: PostThreadViewer | null;
   myRooms: MyRoom[];
@@ -370,6 +375,7 @@ export async function getPostThreadData(
       canComment: false,
       canReact: false,
       canModerate: false,
+      staffRole: null,
       thread: emptyThread,
       currentUser,
       myRooms,
@@ -378,6 +384,7 @@ export async function getPostThreadData(
   }
 
   const replyRows = prefetchedReplyRows ?? await fetchReplyRows();
+  const staffRole = viewer ? await getViewerStaffRole() : null;
 
   const thread = buildPostThreadFromMessages({
     room: { slug: roomRecord.slug, name: roomRecord.name },
@@ -412,13 +419,15 @@ export async function getPostThreadData(
     memberStatus,
     canComment,
     canReact,
-    canModerate: canModerateRoom(
-      resolveRoomRoleFromRecords({
-        roomCreatorId: roomRecord.creatorId,
-        userId: viewer?.id,
-        membership: viewerMembership,
-      })
-    ),
+    canModerate:
+      canModerateRoom(
+        resolveRoomRoleFromRecords({
+          roomCreatorId: roomRecord.creatorId,
+          userId: viewer?.id,
+          membership: viewerMembership,
+        })
+      ) || staffRole !== null,
+    staffRole,
     thread,
     currentUser,
     myRooms,
@@ -630,7 +639,7 @@ export async function updateThreadMessage(input: {
 
     const updated = await prisma.message.update({
       where: { id: target.id },
-      data: { content: validated.value },
+      data: { content: validated.value, editedAt: new Date() },
       select: { id: true, content: true },
     });
 
@@ -926,24 +935,12 @@ export async function reportThreadTarget(input: {
 
     const formattedReason = formatReportReason(input.reason, input.details);
 
-    await prisma.report.upsert({
-      where: {
-        reporterId_messageId: {
-          reporterId: viewer.id,
-          messageId,
-        },
-      },
-      create: {
-        reporterId: viewer.id,
-        messageId,
-        roomId: context.room.id,
-        reason: formattedReason,
-        status: 'pending',
-      },
-      update: {
-        reason: formattedReason,
-        status: 'pending',
-      },
+    await submitReport({
+      reporterId: viewer.id,
+      roomId: context.room.id,
+      messageId,
+      postId: context.rootPost.id,
+      reason: formattedReason,
     });
 
     return { ok: true, data: { reported: true } };
