@@ -7,6 +7,11 @@ import { ReactionBar } from './ReactionBar';
 import Icon from '@/component/ui/Icon';
 import Tape from '@/component/ui/Tape';
 import {
+  StaffMenuLabel,
+  StaffMenuLink,
+  type StaffRole,
+} from '@/component/admin/StaffMenuLabel';
+import {
   avatarClass,
   indexCardClass,
   outlineButtonClass,
@@ -18,6 +23,7 @@ interface PostCardProps {
   isMuted: boolean;
   isOwner?: boolean;
   canDelete?: boolean;
+  staffRole?: StaffRole | null;
   onToggleReaction: (emoji: string) => Promise<boolean | void> | boolean | void;
   onReplyClick: () => void;
   onShareClick: () => void;
@@ -33,6 +39,7 @@ export const PostCard = memo(function PostCard({
   isMuted,
   isOwner = false,
   canDelete = false,
+  staffRole = null,
   onToggleReaction,
   onReplyClick,
   onShareClick,
@@ -97,6 +104,7 @@ export const PostCard = memo(function PostCard({
               ใน{thread.boardName} ·{' '}
               <time dateTime={thread.createdAt} suppressHydrationWarning>
                 {formatRelativeTimeThai(thread.createdAt, referenceTime)}
+                {thread.isEdited ? ' (แก้ไขแล้ว)' : ''}
               </time>
             </div>
           </div>
@@ -166,6 +174,17 @@ export const PostCard = memo(function PostCard({
                 >
                   รายงานกระทู้
                 </button>
+              )}
+              {staffRole && (
+                <>
+                  <StaffMenuLabel role={staffRole} />
+                  <StaffMenuLink
+                    href="/admin/reports"
+                    onNavigate={() => setIsMenuOpen(false)}
+                  >
+                    ดูรายงานในแผงแอดมิน
+                  </StaffMenuLink>
+                </>
               )}
             </div>
           )}

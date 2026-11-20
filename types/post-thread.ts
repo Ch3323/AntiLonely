@@ -65,6 +65,7 @@ export interface PostThread {
   boardName: string;
   author: ThreadAuthor;
   content: string;
+  isEdited?: boolean;
   createdAt: string;
   reactions: ReactionItem[];
   comments: ThreadComment[];

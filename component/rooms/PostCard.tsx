@@ -14,6 +14,11 @@ import {
   disabledButtonClass,
   secondaryButtonClass,
 } from "@/lib/shared/styles";
+import {
+  StaffMenuLabel,
+  StaffMenuLink,
+  type StaffRole,
+} from "@/component/admin/StaffMenuLabel";
 import type { ReactionItem, ReportReason } from "@/types/post-thread";
 
 type Props = {
@@ -29,6 +34,8 @@ type Props = {
   // The room's owner or a moderator: may delete other people's posts.
   canModerate?: boolean;
   isEdited?: boolean;
+  // Site admin or moderator: the menu shows the staff-only options.
+  staffRole?: StaffRole | null;
   timeBeside?: boolean;
   reactions?: { emoji: string; count: number; reactedByMe?: boolean }[];
   replyCount: number;
@@ -83,6 +90,7 @@ const PostCard = memo(function PostCard({
   isOwner = false,
   canModerate = false,
   isEdited = false,
+  staffRole = null,
   timeBeside = false,
   reactions: initialReactions = noReactions,
   replyCount,
@@ -306,6 +314,17 @@ const PostCard = memo(function PostCard({
                   >
                     รายงานกระทู้
                   </button>
+                </>
+              )}
+              {staffRole && (
+                <>
+                  <StaffMenuLabel role={staffRole} />
+                  <StaffMenuLink
+                    href="/admin/reports"
+                    onNavigate={() => setIsMenuOpen(false)}
+                  >
+                    ดูรายงานในแผงแอดมิน
+                  </StaffMenuLink>
                 </>
               )}
             </div>

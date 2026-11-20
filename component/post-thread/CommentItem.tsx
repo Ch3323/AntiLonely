@@ -7,6 +7,11 @@ import { ReactionBar } from './ReactionBar';
 import { ReplyComposer } from './ReplyComposer';
 import Icon from '@/component/ui/Icon';
 import {
+  StaffMenuLabel,
+  StaffMenuLink,
+  type StaffRole,
+} from '@/component/admin/StaffMenuLabel';
+import {
   avatarClass,
   disabledButtonClass,
   inputClass,
@@ -21,6 +26,7 @@ interface CommentItemProps {
   currentUserName: string;
   // The room's owner or a moderator: may delete anyone's comment.
   canModerate?: boolean;
+  staffRole?: StaffRole | null;
   isExpanded: boolean;
   isReplying: boolean;
   activeReplyTargetName?: string;
@@ -78,6 +84,7 @@ export const CommentItem = memo(function CommentItem({
   currentUserId,
   currentUserName,
   canModerate = false,
+  staffRole = null,
   isExpanded,
   isReplying,
   activeReplyTargetName,
@@ -238,6 +245,17 @@ export const CommentItem = memo(function CommentItem({
                 >
                   รายงานความคิดเห็น
                 </button>
+              </>
+            )}
+            {staffRole && (
+              <>
+                <StaffMenuLabel role={staffRole} />
+                <StaffMenuLink
+                  href="/admin/reports"
+                  onNavigate={() => setOpenMenuId(null)}
+                >
+                  ดูรายงานในแผงแอดมิน
+                </StaffMenuLink>
               </>
             )}
           </div>
