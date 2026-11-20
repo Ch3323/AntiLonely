@@ -424,50 +424,47 @@ async function handleBulkUnarchive() {
         </div>
       )}
 
-      <div className="overflow-x-auto rounded-xl border border-edge-strong bg-white">
-        <table className="w-full min-w-[920px] border-collapse text-left text-sm">
-          <thead className="bg-cream text-ink-soft">
-            <tr className="h-10">
-              <th className="w-14 px-4">
+      <div className="overflow-x-auto rounded-xl border-[1.5px] border-ink bg-white shadow-[4px_4px_0_var(--color-edge-strong)]">
+        <table className="w-full min-w-[920px] border-collapse text-left">
+          <thead className="bg-butter text-xs text-ink-soft">
+            <tr>
+              <th className="w-14 px-4 py-3">
                 <input
                   type="checkbox"
                   checked={allSelected}
                   onChange={toggleAll}
                   aria-label="เลือกห้องทั้งหมด"
-                  className="h-4 w-4 accent-black"
+                  className="h-4 w-4 accent-kmutt-orange-dark"
                 />
               </th>
-              <th className="px-4 font-medium">ชื่อห้อง</th>
-              <th className="px-4 font-medium">ประเภท</th>
-              <th className="px-4 font-medium">สมาชิก</th>
-              <th className="px-4 font-medium">โพสต์</th>
-              <th className="px-4 font-medium">สร้างเมื่อ</th>
-              <th className="px-4 font-medium">สถานะ</th>
-              <th className="px-4 font-medium">การจัดการ</th>
+              <th className="px-4 py-3">ชื่อห้อง</th>
+              <th className="px-4 py-3">ประเภท</th>
+              <th className="px-4 py-3">สมาชิก</th>
+              <th className="px-4 py-3">โพสต์</th>
+              <th className="px-4 py-3">สร้างเมื่อ</th>
+              <th className="px-4 py-3">สถานะ</th>
+              <th className="px-4 py-3">การจัดการ</th>
             </tr>
           </thead>
 
-          <tbody>
+          <tbody className="divide-y divide-gray-200 text-sm">
             {filteredRooms.map((room) => (
-              <tr
-                key={room.id}
-                className="h-[55px] border-t border-edge hover:bg-cream"
-              >
-                <td className="px-4">
+              <tr key={room.id} className="hover:bg-butter">
+                <td className="px-4 py-4">
                   <input
                     type="checkbox"
                     checked={selected.includes(room.id)}
                     onChange={() => toggleOne(room.id)}
                     aria-label={`เลือกห้อง ${room.name}`}
-                    className="h-4 w-4 accent-black"
+                    className="h-4 w-4 accent-kmutt-orange-dark"
                   />
                 </td>
 
-                <td className="px-4 font-medium">{room.name}</td>
+                <td className="px-4 py-4 font-medium text-ink">{room.name}</td>
 
-                <td className="px-4">
+                <td className="px-4 py-4">
                   <span
-                    className={`rounded-full px-2.5 py-1 text-xs ${
+                    className={`whitespace-nowrap rounded-full px-2.5 py-1 text-xs ${
                       room.type === "private"
                         ? "bg-butter text-ink"
                         : "bg-cream text-ink"
@@ -477,21 +474,21 @@ async function handleBulkUnarchive() {
                   </span>
                 </td>
 
-                <td className="px-4 tabular-nums">
+                <td className="px-4 py-4 font-semibold tabular-nums text-ink">
                   {formatNumber(room.members)}
                 </td>
 
-                <td className="px-4 tabular-nums">
+                <td className="px-4 py-4 font-semibold tabular-nums text-ink">
                   {formatNumber(room.posts)}
                 </td>
 
-                <td className="px-4 text-ink-soft">
+                <td className="px-4 py-4 text-ink-soft">
                   {formatDate(room.createdAt)}
                 </td>
 
-                <td className="px-4">
+                <td className="px-4 py-4">
                   <span
-                    className={`rounded-full px-2.5 py-1 text-xs ${
+                    className={`whitespace-nowrap rounded-full px-2.5 py-1 text-xs ${
                       room.status === "active"
                         ? "bg-green-50 text-green-700"
                         : room.status === "archived"
@@ -507,13 +504,13 @@ async function handleBulkUnarchive() {
                   </span>
                 </td>
 
-                <td className="px-4">
+                <td className="px-4 py-4">
                   <div className="flex items-center gap-2 whitespace-nowrap">
                     <button
                       type="button"
                       disabled={room.status === "archived"}
                       onClick={() => setEditing(room)}
-                      className="rounded-md border border-edge-strong px-2.5 py-1 text-xs hover:bg-butter disabled:cursor-not-allowed disabled:opacity-40"
+                      className="rounded-lg border border-edge-strong px-3 py-2 text-xs font-medium hover:bg-butter disabled:cursor-not-allowed disabled:opacity-40"
                     >
                       แก้ไข
                     </button>
@@ -522,7 +519,7 @@ async function handleBulkUnarchive() {
                         type="button"
                         disabled={pending}
                         onClick={() => handleUnarchive(room)}
-                        className="rounded-md border border-edge-strong px-2.5 py-1 text-xs hover:bg-butter disabled:opacity-50"
+                        className="rounded-lg border border-edge-strong px-3 py-2 text-xs font-medium hover:bg-butter disabled:cursor-not-allowed disabled:opacity-40"
                       >
                         ยกเลิกการจัดเก็บ
                       </button>
@@ -530,7 +527,7 @@ async function handleBulkUnarchive() {
                       <button
                         type="button"
                         onClick={() => setConfirmArchive(room)}
-                        className="rounded-md border border-edge-strong px-2.5 py-1 text-xs hover:bg-butter"
+                        className="rounded-lg border border-edge-strong px-3 py-2 text-xs font-medium hover:bg-butter"
                       >
                         จัดเก็บ
                       </button>
@@ -539,7 +536,7 @@ async function handleBulkUnarchive() {
                       type="button"
                       disabled={pending}
                       onClick={() => openDeleteModal([room])}
-                      className="rounded-md border border-red-200 px-2.5 py-1 text-xs text-red-600 hover:bg-red-50 disabled:opacity-50"
+                      className="rounded-lg border border-red-300 px-3 py-2 text-xs font-medium text-red-500 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-40"
                     >
                       ลบถาวร
                     </button>
@@ -551,14 +548,14 @@ async function handleBulkUnarchive() {
             {filteredRooms.length === 0 && (
               <tr>
                 <td colSpan={8} className="px-4 py-16 text-center">
-                  <p className="font-medium text-ink-soft">
+                  <p className="font-medium text-ink">
                     {rooms.length === 0
                       ? "ยังไม่มีห้องแชท"
                       : search
                         ? "ไม่พบห้องที่ค้นหา"
                         : "ไม่มีห้องในหมวดหมู่นี้"}
                   </p>
-                  <p className="mt-1 text-sm text-ink-soft">
+                  <p className="mt-2 text-sm text-ink-soft/70">
                     {rooms.length === 0
                       ? "เมื่อมีการสร้างห้อง ห้องจะแสดงที่นี่"
                       : "ลองเปลี่ยนคำค้นหาหรือตัวกรอง"}
