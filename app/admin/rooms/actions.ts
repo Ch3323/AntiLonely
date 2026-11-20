@@ -122,6 +122,57 @@ export async function archiveRoom(id: string) {
   }
 }
 
+// Permanently erases a room (members, posts and reports cascade). Unlike
+// archiving this cannot be undone, so it is admin-only and does not need a
+// report to exist first.
+export async function deleteRoomPermanently(id: string) {
+  const session = await auth.api.getSession({ headers: await headers() });
+
+  if (!session || session.user.role !== "admin") {
+    return {
+      ok: false as const,
+      error: "เฉพาะผู้ดูแลระบบ (Admin) เท่านั้นที่ลบห้องถาวรได้",
+    };
+  }
+
+  if (!id) {
+    return {
+      ok: false as const,
+      error: "ไม่พบรหัสห้อง",
+    };
+  }
+
+  try {
+    const room = await prisma.room.findUnique({
+      where: { id },
+      select: { id: true },
+    });
+
+    if (!room) {
+      return {
+        ok: false as const,
+        error: "ไม่พบห้อง หรือห้องนี้ถูกลบไปแล้ว",
+      };
+    }
+
+    // Notify before deleting: the member list is gone afterwards.
+    await notifyRoomClosed(id, session.user.id);
+    await prisma.room.delete({ where: { id } });
+
+    revalidatePath("/admin/rooms");
+    revalidatePath("/admin/reports");
+    revalidatePath("/admin");
+    signalRoomChange({ roomId: id, board: true, wholeRoom: true });
+
+    return { ok: true as const };
+  } catch {
+    return {
+      ok: false as const,
+      error: "ไม่สามารถลบห้องได้ กรุณาลองใหม่",
+    };
+  }
+}
+
 export async function unarchiveRoom(id: string) {
   const permission = await checkRoomPermission();
 

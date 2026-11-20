@@ -2,7 +2,12 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { archiveRoom, unarchiveRoom, updateRoom } from "@/app/admin/rooms/actions";
+import {
+  archiveRoom,
+  deleteRoomPermanently,
+  unarchiveRoom,
+  updateRoom,
+} from "@/app/admin/rooms/actions";
 
 type Room = {
   id: string;
@@ -16,6 +21,7 @@ type Room = {
 };
 
 type Props = {
+  canDelete: boolean;
   rooms: Room[];
   summary: {
     total: number;
@@ -58,7 +64,9 @@ function formatNumber(value: number) {
   return value.toLocaleString("en-US");
 }
 
-export default function AdminRooms({ rooms, summary }: Props) {
+export default function AdminRooms({ rooms, summary, canDelete }: Props) {
+  const [confirmDelete, setConfirmDelete] = useState<Room | null>(null);
+  const [deleteText, setDeleteText] = useState("");
   const [tab, setTab] = useState<Tab>("all");
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<string[]>([]);
@@ -149,6 +157,27 @@ export default function AdminRooms({ rooms, summary }: Props) {
     );
     setConfirmArchive(null);
     setNotice("จัดเก็บห้องเรียบร้อยแล้ว");
+  }
+
+  async function handleDelete() {
+    if (!confirmDelete || deleteText.trim() !== confirmDelete.name) return;
+
+    setPending(true);
+    setNotice("");
+
+    const result = await deleteRoomPermanently(confirmDelete.id);
+
+    setPending(false);
+
+    if (!result.ok) {
+      setNotice(result.error);
+      return;
+    }
+
+    setSelected((current) => current.filter((id) => id !== confirmDelete.id));
+    setNotice(`ลบห้อง "${confirmDelete.name}" ถาวรเรียบร้อยแล้ว`);
+    setConfirmDelete(null);
+    setDeleteText("");
   }
 
   async function handleBulkArchive() {
@@ -448,6 +477,18 @@ async function handleBulkUnarchive() {
                         จัดเก็บ
                       </button>
                     )}
+                    {canDelete && (
+                      <button
+                        disabled={pending}
+                        onClick={() => {
+                          setDeleteText("");
+                          setConfirmDelete(room);
+                        }}
+                        className="rounded-md border border-red-200 px-2.5 py-1 text-xs text-red-600 hover:bg-red-50 disabled:opacity-50"
+                      >
+                        ลบถาวร
+                      </button>
+                    )}
                   </div>
                 </td>
               </tr>
@@ -519,6 +560,44 @@ async function handleBulkUnarchive() {
                 className="rounded-lg bg-ink px-4 py-2 text-sm text-white disabled:opacity-50"
               >
                 {pending ? "กำลังบันทึก..." : "บันทึก"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {confirmDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="max-h-[calc(100dvh-2rem)] w-full max-w-sm overflow-y-auto rounded-xl bg-white p-6 shadow-xl">
+            <h2 className="text-lg font-semibold text-red-600">ลบห้องถาวร?</h2>
+            <p className="mt-2 text-sm text-ink-soft">
+              ห้อง &quot;{confirmDelete.name}&quot; พร้อมสมาชิก โพสต์ และรายงานทั้งหมดจะถูกลบถาวร
+              และกู้คืนไม่ได้ ไม่ต้องรอรายงาน
+            </p>
+            <label className="mt-4 block text-sm font-medium">
+              พิมพ์ชื่อห้องเพื่อยืนยัน
+            </label>
+            <input
+              value={deleteText}
+              onChange={(event) => setDeleteText(event.target.value)}
+              placeholder={confirmDelete.name}
+              className="mt-2 w-full rounded-lg border px-3 py-2 text-sm outline-none focus:border-red-400"
+            />
+
+            <div className="mt-6 flex justify-end gap-2">
+              <button
+                disabled={pending}
+                onClick={() => setConfirmDelete(null)}
+                className="rounded-lg border px-4 py-2 text-sm"
+              >
+                ยกเลิก
+              </button>
+              <button
+                disabled={pending || deleteText.trim() !== confirmDelete.name}
+                onClick={handleDelete}
+                className="rounded-lg bg-red-600 px-4 py-2 text-sm text-white disabled:opacity-50"
+              >
+                {pending ? "กำลังลบ..." : "ยืนยันลบถาวร"}
               </button>
             </div>
           </div>
