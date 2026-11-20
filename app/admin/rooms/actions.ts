@@ -130,15 +130,6 @@ export async function archiveRoom(id: string) {
 // archiving this cannot be undone, so it is admin-only and does not need a
 // report to exist first.
 export async function deleteRoomPermanently(id: string) {
-  const session = await auth.api.getSession({ headers: await headers() });
-
-  if (!session || session.user.role !== "admin") {
-    return {
-      ok: false as const,
-      error: "เฉพาะผู้ดูแลระบบ (Admin) เท่านั้นที่ลบห้องถาวรได้",
-    };
-  }
-
   if (!id) {
     return {
       ok: false as const,
@@ -146,35 +137,9 @@ export async function deleteRoomPermanently(id: string) {
     };
   }
 
-  try {
-    const room = await prisma.room.findUnique({
-      where: { id },
-      select: { id: true },
-    });
-
-    if (!room) {
-      return {
-        ok: false as const,
-        error: "ไม่พบห้อง หรือห้องนี้ถูกลบไปแล้ว",
-      };
-    }
-
-    // Notify before deleting: the member list is gone afterwards.
-    await notifyRoomClosed(id, session.user.id);
-    await prisma.room.delete({ where: { id } });
-
-    revalidatePath("/admin/rooms");
-    revalidatePath("/admin/reports");
-    revalidatePath("/admin");
-    signalRoomChange({ roomId: id, board: true, wholeRoom: true });
-
-    return { ok: true as const };
-  } catch {
-    return {
-      ok: false as const,
-      error: "ไม่สามารถลบห้องได้ กรุณาลองใหม่",
-    };
-  }
+  const result = await deleteRoomsPermanently([id]);
+  if (!result.ok) return result;
+  return { ok: true as const };
 }
 
 export async function unarchiveRoom(id: string) {
@@ -245,10 +210,17 @@ export async function deleteRoomsPermanently(ids: string[]) {
     ),
   ];
 
-  if (uniqueIds.length === 0 || uniqueIds.length > 100) {
+  if (uniqueIds.length === 0) {
     return {
       ok: false as const,
       error: "รายการห้องที่เลือกไม่ถูกต้อง",
+    };
+  }
+
+  if (uniqueIds.length > 100) {
+    return {
+      ok: false as const,
+      error: "ลบห้องถาวรได้ครั้งละไม่เกิน 100 ห้อง",
     };
   }
 

@@ -84,6 +84,10 @@ export default function AdminRooms({ rooms, summary, canDelete }: Props) {
     deleteConfirmText.trim() === requiredDeletePhrase;
 
   function openDeleteModal(targets: Room[]) {
+    if (targets.length > 100) {
+      setNotice("ลบห้องถาวรได้ครั้งละไม่เกิน 100 ห้อง");
+      return;
+    }
     setConfirmDeleteTargets(targets);
     setDeleteConfirmText("");
   }

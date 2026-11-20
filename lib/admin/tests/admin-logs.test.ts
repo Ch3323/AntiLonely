@@ -6,6 +6,7 @@ import {
   formatActivityTime,
   formatLogTimestamp,
   getReportReasonLabel,
+  parseReportReason,
   type AdminSanctionType,
 } from '../admin-logs.ts';
 
@@ -13,6 +14,26 @@ const NOW_ISO = '2026-10-03T15:00:00+07:00';
 const NOW_MS = Date.parse(NOW_ISO);
 
 describe('admin-logs helpers', () => {
+  it('parses known report reason keys and optional details safely', () => {
+    assert.deepEqual(parseReportReason('inappropriate'), {
+      key: 'inappropriate',
+      details: '',
+    });
+    assert.deepEqual(parseReportReason('other: พูดไม่สุภาพ'), {
+      key: 'other',
+      details: 'พูดไม่สุภาพ',
+    });
+    assert.deepEqual(parseReportReason('custom: detail'), {
+      key: null,
+      details: '',
+    });
+    assert.deepEqual(parseReportReason('constructor: abc'), {
+      key: null,
+      details: '',
+    });
+    assert.deepEqual(parseReportReason('   '), { key: null, details: '' });
+  });
+
   it('translates all known report reason keys, "key: details", and preserves custom strings', () => {
     assert.equal(getReportReasonLabel('inappropriate'), 'เนื้อหาไม่เหมาะสม');
     assert.equal(getReportReasonLabel('misinformation'), 'ข้อมูลเท็จ');

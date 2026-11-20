@@ -102,22 +102,41 @@ function lookupReasonLabel(key: string): string | undefined {
     : undefined;
 }
 
+/** Splits a stored report reason ("key" or "key: details") into its known key and optional details. */
+export function parseReportReason(reason: string): {
+  key: string | null;
+  details: string;
+} {
+  const trimmed = reason.trim();
+  if (!trimmed) return { key: null, details: '' };
+
+  const colonIdx = trimmed.indexOf(':');
+  if (colonIdx > 0) {
+    const candidate = trimmed.slice(0, colonIdx).trim();
+    if (lookupReasonLabel(candidate)) {
+      return {
+        key: candidate,
+        details: trimmed.slice(colonIdx + 1).trim(),
+      };
+    }
+  }
+
+  return {
+    key: lookupReasonLabel(trimmed) ? trimmed : null,
+    details: '',
+  };
+}
+
 /** Translates a stored report reason key (or "key: details") into a Thai label. */
 export function getReportReasonLabel(reason: string): string {
   const trimmed = reason.trim();
   if (!trimmed) return 'ไม่ระบุเหตุผล';
 
-  const colonIdx = trimmed.indexOf(':');
-  if (colonIdx > 0) {
-    const key = trimmed.slice(0, colonIdx).trim();
-    const details = trimmed.slice(colonIdx + 1).trim();
-    const mappedKey = lookupReasonLabel(key);
-    if (mappedKey) {
-      return details ? `${mappedKey}: ${details}` : mappedKey;
-    }
-  }
+  const { key, details } = parseReportReason(trimmed);
+  if (!key) return trimmed;
 
-  return lookupReasonLabel(trimmed) ?? trimmed;
+  const mappedKey = lookupReasonLabel(key)!;
+  return details ? `${mappedKey}: ${details}` : mappedKey;
 }
 
 /** Formats an ISO timestamp as "Sep 26, 2026 14:32" in Asia/Bangkok. */
