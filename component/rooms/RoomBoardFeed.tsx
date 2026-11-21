@@ -11,6 +11,8 @@ import {
 import { authClient } from "@/lib/auth/auth-client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useConfirm } from "@/component/ui/ConfirmDialog";
+import { setNotificationMute } from "@/app/notifications/actions";
 import EmptyNote from "@/component/ui/EmptyNote";
 import Header from "@/component/layout/Header";
 import Icon from "@/component/ui/Icon";
@@ -113,6 +115,8 @@ type Props = {
   myRooms?: MyRoom[];
   serverTime?: string;
   presence?: RoomPresenceConfig | null;
+  // Whether this viewer turned the room's reply/reaction notices off.
+  initialMuted?: boolean;
 };
 
 const POST_SORT_OPTIONS: { sort: PostSort; label: string; detail: string }[] = [
@@ -345,6 +349,7 @@ export default function RoomBoardFeed({
   myRooms = [],
   serverTime,
   presence = null,
+  initialMuted = false,
 }: Props) {
   const [referenceTime, setReferenceTime] = useState<number>(() => {
     
@@ -390,7 +395,8 @@ export default function RoomBoardFeed({
     setMembership(initialMembership);
   }
   const [isMembershipPending, setIsMembershipPending] = useState(false);
-  const [isMuted, setIsMuted] = useState(false);
+  const [isMuted, setIsMuted] = useState(initialMuted);
+  const { confirm, dialog: confirmDialog } = useConfirm();
   const [isRoomMenuOpen, setIsRoomMenuOpen] = useState(false);
   const [isLeaveModalOpen, setIsLeaveModalOpen] = useState(false);
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
@@ -616,6 +622,13 @@ export default function RoomBoardFeed({
         return;
       }
 
+      const confirmed = await confirm({
+        title: "ลบกระทู้นี้ไหม?",
+        description: "หากลบแล้ว กระทู้นี้จะหายไปและไม่สามารถกู้คืนได้",
+        confirmLabel: "ลบกระทู้",
+      });
+      if (!confirmed) return;
+
       const deletedIndex = postsRef.current.findIndex((p) => p.id === postId);
       const deletedPost =
         deletedIndex >= 0 ? postsRef.current[deletedIndex] : undefined;
@@ -659,7 +672,7 @@ export default function RoomBoardFeed({
         pendingChanges.clearDeleting([postId]);
       }
     },
-    [canModerate, currentUser, pendingChanges, room.id, showToast]
+    [canModerate, confirm, currentUser, pendingChanges, room.id, showToast]
   );
 
   const updatePostReactions = useCallback(
@@ -810,20 +823,23 @@ export default function RoomBoardFeed({
     if (!staffRole) return;
 
     const permanent = staffRole === "admin";
-    if (permanent) {
-      const typed = window.prompt(
-        `ลบห้อง "${room.name}" ถาวร กู้คืนไม่ได้\nพิมพ์ชื่อห้องเพื่อยืนยัน`
-      );
-      if (typed === null) return;
-      if (typed.trim() !== room.name) {
-        showToast("ชื่อห้องไม่ตรงกัน ยกเลิกการลบ");
-        return;
-      }
-    } else if (
-      !window.confirm(`จัดเก็บห้อง "${room.name}" ใช่หรือไม่?`)
-    ) {
-      return;
-    }
+    const confirmed = await confirm(
+      permanent
+        ? {
+            title: "ลบห้องถาวรไหม?",
+            description: `ห้อง "${room.name}" จะถูกลบถาวรและกู้คืนไม่ได้`,
+            confirmLabel: "ลบถาวร",
+            requireText: room.name,
+            requireTextLabel: "พิมพ์ชื่อห้องเพื่อยืนยัน",
+          }
+        : {
+            title: "จัดเก็บห้องนี้ไหม?",
+            description: `ห้อง "${room.name}" จะถูกจัดเก็บและไม่แสดงในหน้าหลัก`,
+            confirmLabel: "จัดเก็บห้อง",
+            tone: "warning",
+          }
+    );
+    if (!confirmed) return;
 
     try {
       const result = permanent
@@ -855,13 +871,33 @@ export default function RoomBoardFeed({
     }
   }
 
-  function handleToggleMute() {
+  async function handleToggleMute() {
     setIsRoomMenuOpen(false);
+    if (!currentUser) {
+      showToast("กรุณาเข้าสู่ระบบก่อนตั้งค่าการแจ้งเตือน");
+      return;
+    }
+
     const nextMuted = !isMuted;
     setIsMuted(nextMuted);
-    showToast(
-      nextMuted ? "ปิดการแจ้งเตือนห้องนี้แล้ว" : "เปิดการแจ้งเตือนห้องนี้แล้ว"
-    );
+    try {
+      const result = await setNotificationMute({
+        scope: "room",
+        targetId: room.id,
+        muted: nextMuted,
+      });
+      if (!result.ok) {
+        setIsMuted(!nextMuted);
+        showToast(result.error);
+        return;
+      }
+      showToast(
+        nextMuted ? "ปิดการแจ้งเตือนห้องนี้แล้ว" : "เปิดการแจ้งเตือนห้องนี้แล้ว"
+      );
+    } catch {
+      setIsMuted(!nextMuted);
+      showToast("ไม่สามารถเปลี่ยนการตั้งค่าได้ กรุณาลองใหม่อีกครั้ง");
+    }
   }
 
   const handleReportPostSubmit = useCallback(
@@ -1447,6 +1483,8 @@ export default function RoomBoardFeed({
           onClose={() => setManageDialog(null)}
         />
       )}
+
+      {confirmDialog}
 
       {/* Report Room Modal */}
       <ReportModal

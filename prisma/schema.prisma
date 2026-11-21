@@ -27,6 +27,14 @@ enum UserRole {
   @@map("user_role")
 }
 
+// What a notification mute covers: a whole room, or one thread (post).
+enum NotificationMuteScope {
+  room
+  post
+
+  @@map("notification_mute_scope")
+}
+
 enum NotificationType {
   reply
   mention
@@ -116,6 +124,7 @@ model User {
   accounts            Account[]
   notifications       Notification[]
   notificationsCaused Notification[] @relation("NotificationActor")
+  notificationMutes   NotificationMute[]
   sanctionsReceived   Sanction[]     @relation("SanctionsReceived")
   sanctionsIssued     Sanction[]     @relation("SanctionsIssued")
   roomsCreated        Room[]
@@ -208,6 +217,21 @@ model Notification {
   @@index([userId, createdAt(sort: Desc)])
   @@index([actorId])
   @@map("notifications")
+}
+
+// A user turning off reply/reaction notices for one room or one thread.
+// target_id is a plain id (a room or a post), not a relation, so a mute
+// outlives nothing important and never blocks deleting the room or post.
+model NotificationMute {
+  userId    String                @map("user_id") @db.Uuid
+  scope     NotificationMuteScope
+  targetId  String                @map("target_id") @db.Uuid
+  createdAt DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, scope, targetId])
+  @@map("notification_mutes")
 }
 
 // user 1 —receives— N sanctions (the sanctioned user)
