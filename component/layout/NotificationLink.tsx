@@ -15,7 +15,7 @@ import {
 } from "@/lib/notifications/notification-count-store";
 import { primaryButtonClass } from "@/lib/shared/styles";
 
-const REFRESH_MS = 15000;
+const REFRESH_MS = 60_000;
 
 // The header's "โนติ" bell. The number always comes from the database through
 // /api/notifications/unread-count, so every page shows the same figure. When

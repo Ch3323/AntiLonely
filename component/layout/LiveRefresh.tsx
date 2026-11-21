@@ -75,17 +75,17 @@ function useVisibleInterval(
   }, [intervalMs, enabled]);
 }
 
-const HOME_REFRESH_MS = 25_000;
+const HOME_REFRESH_MS = 60_000;
 
 /**
- * Home: re-reads rooms, member and post counts about every 25 seconds while
+ * Home: re-reads rooms, member and post counts about every minute while
  * the tab is visible. Pauses while a modal route (log in, sign up) sits over
  * Home, so the modal is never re-rendered under someone typing in it.
  */
 export function HomeAutoRefresh({ topic = null }: { topic?: string | null }) {
   const onHome = usePathname() === "/";
   // With the live channel, Home re-reads when something moves (and polls only
-  // as a slow fallback); without it, it polls every 25 seconds.
+  // as a slow fallback); without it, it polls every minute.
   if (topic) {
     return onHome ? (
       <RoomLiveRefresh live={{ topic, thread: null }} fallbackPoll />
@@ -101,10 +101,10 @@ function HomePolling({ enabled }: { enabled: boolean }) {
   return null;
 }
 
-const ADMIN_REFRESH_MS = 30_000;
+const ADMIN_REFRESH_MS = 60_000;
 
 /**
- * Admin pages: re-read reports, rooms and users about every 30 seconds while
+ * Admin pages: re-read reports, rooms and users about every minute while
  * the tab is visible, so the moderation queue doesn't go stale. Open modals,
  * filters, selections and half-filled forms are client state and stay put.
  */
@@ -115,11 +115,11 @@ export function AdminAutoRefresh() {
   return null;
 }
 
-const NOTIFICATIONS_PROBE_MS = 15_000;
+const NOTIFICATIONS_PROBE_MS = 60_000;
 
 // The count can stay the same while the list changes (one new, one read in
 // the same window), so the list is also re-read every few probes regardless.
-const NOTIFICATIONS_FULL_EVERY = 4;
+const NOTIFICATIONS_FULL_EVERY = 3;
 
 /**
  * Notifications page: asks for the unread count like the header's bell does
@@ -186,7 +186,7 @@ function NotificationsPolling() {
 const LIVE_DEBOUNCE_MS = 250;
 const LIVE_MAX_WAIT_MS = 1000;
 // Without Realtime (keys missing, blocked, down), poll slowly instead.
-const FALLBACK_POLL_MS = 45_000;
+const FALLBACK_POLL_MS = 90_000;
 
 /**
  * Room board and thread page: listens on the room's live channel and
