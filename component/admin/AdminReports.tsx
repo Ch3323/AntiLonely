@@ -7,6 +7,7 @@ import BanUserModal from "@/component/admin/BanUserModal";
 import { type SanctionTarget } from "@/component/admin/SanctionParts";
 import SuspendUserModal from "@/component/admin/SuspendUserModal";
 import WarnUserModal from "@/component/admin/WarnUserModal";
+import { useConfirm } from "@/component/ui/ConfirmDialog";
 import {
   dismissReports,
   deleteReportedMessages,
@@ -89,6 +90,7 @@ export default function AdminReports({
   );
   const [warnTarget, setWarnTarget] = useState<SanctionTarget | null>(null);
   const [banTarget, setBanTarget] = useState<SanctionTarget | null>(null);
+  const { confirm, dialog: confirmDialog } = useConfirm();
 
   // จำนวนรายงานแยกตามสถานะ
   const statusCounts = useMemo(() => {
@@ -163,9 +165,12 @@ export default function AdminReports({
   async function handleDismiss(ids: string[]) {
     if (ids.length === 0 || busy) return;
 
-    const confirmed = window.confirm(
-      `ต้องการยกเลิกรายงาน ${ids.length} รายการที่เลือกหรือไม่?`,
-    );
+    const confirmed = await confirm({
+      title: "ยกเลิกรายงานนี้ไหม?",
+      description: `รายงาน ${ids.length} รายการที่เลือกจะถูกย้ายไปที่ "ยกเลิกแล้ว"`,
+      confirmLabel: "ยกเลิกรายงาน",
+      tone: "warning",
+    });
 
     if (!confirmed) return;
 
@@ -194,9 +199,11 @@ export default function AdminReports({
     ids = ids.filter((id) => !id.startsWith("room:"));
     if (ids.length === 0 || busy) return;
 
-    const confirmed = window.confirm(
-      `ต้องการลบเนื้อหาของ ${ids.length} รายการที่เลือกหรือไม่?`,
-    );
+    const confirmed = await confirm({
+      title: "ลบเนื้อหาที่ถูกรายงานไหม?",
+      description: `เนื้อหา ${ids.length} รายการที่เลือกจะถูกลบและกู้คืนไม่ได้`,
+      confirmLabel: "ลบเนื้อหา",
+    });
 
     if (!confirmed) return;
 
@@ -228,6 +235,7 @@ export default function AdminReports({
 
   return (
     <div className="w-full space-y-5">
+      {confirmDialog}
       {/* Header */}
       <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
         <div>
