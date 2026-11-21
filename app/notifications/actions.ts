@@ -10,6 +10,42 @@ import {
   type ActionResult,
 } from '@/lib/shared/server-action-helpers';
 
+// Turns reply/reaction notices on or off for a whole room or one thread.
+export async function setNotificationMute(input: {
+  scope: 'room' | 'post';
+  targetId: string;
+  muted: boolean;
+}): Promise<ActionResult<{ muted: boolean }>> {
+  return runSafeMutation(async () => {
+    const viewer = await getViewerUser();
+    if (!viewer) return { ok: false, error: 'กรุณาเข้าสู่ระบบก่อน' };
+
+    if (
+      (input.scope !== 'room' && input.scope !== 'post') ||
+      !isUuid(input.targetId)
+    ) {
+      return { ok: false, error: 'ไม่พบรายการที่ต้องการ' };
+    }
+
+    const key = {
+      userId: viewer.id,
+      scope: input.scope,
+      targetId: input.targetId,
+    };
+    if (input.muted) {
+      await prisma.notificationMute.upsert({
+        where: { userId_scope_targetId: key },
+        create: key,
+        update: {},
+      });
+    } else {
+      await prisma.notificationMute.deleteMany({ where: key });
+    }
+
+    return { ok: true, data: { muted: input.muted } };
+  }, 'ไม่สามารถเปลี่ยนการตั้งค่าการแจ้งเตือนได้ กรุณาลองใหม่อีกครั้ง');
+}
+
 export async function markNotificationsRead(input: {
   ids?: string[];
   all?: boolean;

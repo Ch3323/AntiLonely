@@ -1,5 +1,6 @@
 'use server';
 
+import { isNotificationMuted } from '@/lib/notifications/notification-mute';
 import { revalidatePath } from 'next/cache';
 import { signalRoomChange, signalUserChange } from '@/lib/rooms/room-live-notify';
 import { prisma } from '@/lib/shared/prisma';
@@ -505,6 +506,15 @@ export async function createThreadReply(input: {
         ? context.rootPost.authorId
         : visibleMessages.find((m) => m.id === parentId)?.authorId ?? null;
 
+    // Nobody to tell: it's their own reply, or they muted this room or thread.
+    const notifyParentAuthor =
+      parentAuthorId !== null &&
+      parentAuthorId !== viewer.id &&
+      !(await isNotificationMuted(parentAuthorId, {
+        roomId: context.room.id,
+        postId: context.rootPost.id,
+      }));
+
     await prisma.$transaction(async (tx) => {
       const created = await tx.message.create({
         data: {
@@ -517,7 +527,7 @@ export async function createThreadReply(input: {
         select: { id: true },
       });
 
-      if (parentAuthorId && parentAuthorId !== viewer.id) {
+      if (notifyParentAuthor && parentAuthorId) {
         await tx.notification.create({
           data: {
             userId: parentAuthorId,
@@ -534,7 +544,7 @@ export async function createThreadReply(input: {
     });
 
     revalidateThreadPaths(context.room.id, context.room.slug, context.rootPost.id);
-    if (parentAuthorId && parentAuthorId !== viewer.id) {
+    if (notifyParentAuthor && parentAuthorId) {
       signalUserChange(parentAuthorId);
     }
     // The board shows each post's reply count, so it changes too.

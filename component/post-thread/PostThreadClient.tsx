@@ -9,6 +9,7 @@ import React, {
   useState,
 } from 'react';
 import Link from 'next/link';
+import { setNotificationMute } from '@/app/notifications/actions';
 import { useRouter } from 'next/navigation';
 import type {
   CommentSortOrder,
@@ -82,6 +83,8 @@ interface PostThreadClientProps {
   } | null;
   myRooms: MyRoom[];
   serverTime: string;
+  // Whether this viewer turned this thread's reply/reaction notices off.
+  initialMuted?: boolean;
 }
 
 const SORT_OPTIONS: { value: CommentSortOrder; label: string }[] = [
@@ -174,6 +177,7 @@ export function PostThreadClient({
   currentUser,
   myRooms,
   serverTime,
+  initialMuted = false,
 }: PostThreadClientProps) {
   const router = useRouter();
   const [thread, setThread] = useState<PostThread>(initialThread);
@@ -186,7 +190,7 @@ export function PostThreadClient({
     replyTo?: { id?: string; name: string; isNested?: boolean };
     targetReplyId?: string;
   } | null>(null);
-  const [isMuted, setIsMuted] = useState(false);
+  const [isMuted, setIsMuted] = useState(initialMuted);
   const [reportTarget, setReportTarget] = useState<{
     type: ReportTargetType;
     id: string;
@@ -864,17 +868,35 @@ export function PostThreadClient({
     showToast('คัดลอกลิงก์กระทู้เรียบร้อยแล้ว');
   }, [showToast]);
 
-  const handleToggleMute = useCallback(() => {
-    setIsMuted((prev) => {
-      const next = !prev;
+  const handleToggleMute = useCallback(async () => {
+    if (!currentUser) {
+      showToast('กรุณาเข้าสู่ระบบก่อนตั้งค่าการแจ้งเตือน');
+      return;
+    }
+
+    const next = !isMuted;
+    setIsMuted(next);
+    try {
+      const result = await setNotificationMute({
+        scope: 'post',
+        targetId: thread.id,
+        muted: next,
+      });
+      if (!result.ok) {
+        setIsMuted(!next);
+        showToast(result.error);
+        return;
+      }
       showToast(
         next
           ? 'ปิดการแจ้งเตือนสำหรับกระทู้นี้แล้ว'
           : 'เปิดการแจ้งเตือนสำหรับกระทู้นี้แล้ว'
       );
-      return next;
-    });
-  }, [showToast]);
+    } catch {
+      setIsMuted(!next);
+      showToast('ไม่สามารถเปลี่ยนการตั้งค่าได้ กรุณาลองใหม่อีกครั้ง');
+    }
+  }, [currentUser, isMuted, showToast, thread.id]);
 
   const handleReportSubmit = async (reason: ReportReason, details: string) => {
     const target = reportTarget;

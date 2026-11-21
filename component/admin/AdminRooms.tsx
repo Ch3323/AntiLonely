@@ -2,6 +2,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useConfirm } from "@/component/ui/ConfirmDialog";
 import {
   archiveRoom,
   deleteRoomsPermanently,
@@ -65,37 +66,13 @@ function formatNumber(value: number) {
 }
 
 export default function AdminRooms({ rooms, summary, canDelete }: Props) {
+  const { confirm, dialog: confirmDialog } = useConfirm();
   const [tab, setTab] = useState<Tab>("all");
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<string[]>([]);
   const [editing, setEditing] = useState<Room | null>(null);
-  const [confirmArchive, setConfirmArchive] = useState<Room | null>(null);
-  const [confirmDeleteTargets, setConfirmDeleteTargets] = useState<Room[]>([]);
-  const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const [notice, setNotice] = useState("");
   const [pending, setPending] = useState(false);
-
-  const requiredDeletePhrase =
-    confirmDeleteTargets.length === 1
-      ? confirmDeleteTargets[0].name.trim()
-      : "ลบถาวร";
-  const isDeleteConfirmed =
-    confirmDeleteTargets.length > 0 &&
-    deleteConfirmText.trim() === requiredDeletePhrase;
-
-  function openDeleteModal(targets: Room[]) {
-    if (targets.length > 100) {
-      setNotice("ลบห้องถาวรได้ครั้งละไม่เกิน 100 ห้อง");
-      return;
-    }
-    setConfirmDeleteTargets(targets);
-    setDeleteConfirmText("");
-  }
-
-  function closeDeleteModal() {
-    setConfirmDeleteTargets([]);
-    setDeleteConfirmText("");
-  }
 
   const selectedRooms = useMemo(
     () => rooms.filter((room) => selected.includes(room.id)),
@@ -169,13 +146,21 @@ export default function AdminRooms({ rooms, summary, canDelete }: Props) {
     setNotice("บันทึกการแก้ไขเรียบร้อยแล้ว");
   }
 
-  async function handleArchive() {
-    if (!confirmArchive) return;
+  async function handleArchive(room: Room) {
+    if (pending) return;
+
+    const confirmed = await confirm({
+      title: "จัดเก็บห้องแชทนี้ไหม?",
+      description: `ห้อง "${room.name}" จะยังอยู่ในระบบ แต่สถานะจะเปลี่ยนเป็นจัดเก็บแล้ว`,
+      confirmLabel: "จัดเก็บห้อง",
+      tone: "warning",
+    });
+    if (!confirmed) return;
 
     setPending(true);
     setNotice("");
 
-    const result = await archiveRoom(confirmArchive.id);
+    const result = await archiveRoom(room.id);
 
     setPending(false);
 
@@ -184,10 +169,7 @@ export default function AdminRooms({ rooms, summary, canDelete }: Props) {
       return;
     }
 
-    setSelected((current) =>
-      current.filter((id) => id !== confirmArchive.id)
-    );
-    setConfirmArchive(null);
+    setSelected((current) => current.filter((id) => id !== room.id));
     setNotice("จัดเก็บห้องเรียบร้อยแล้ว");
   }
 
@@ -199,9 +181,12 @@ export default function AdminRooms({ rooms, summary, canDelete }: Props) {
 
     if (!targets.length) return;
 
-    const confirmed = window.confirm(
-      `ต้องการจัดเก็บ ${targets.length} ห้องที่เลือกหรือไม่?`
-    );
+    const confirmed = await confirm({
+      title: "จัดเก็บห้องที่เลือกไหม?",
+      description: `ห้อง ${targets.length} ห้องที่เลือกจะถูกเปลี่ยนสถานะเป็นจัดเก็บแล้ว`,
+      confirmLabel: "จัดเก็บห้อง",
+      tone: "warning",
+    });
 
     if (!confirmed) return;
 
@@ -249,9 +234,12 @@ async function handleBulkUnarchive() {
 
   if (!targets.length) return;
 
-  const confirmed = window.confirm(
-    `ต้องการยกเลิกการจัดเก็บ ${targets.length} ห้องที่เลือกหรือไม่?`
-  );
+  const confirmed = await confirm({
+    title: "ยกเลิกการจัดเก็บไหม?",
+    description: `ห้อง ${targets.length} ห้องที่เลือกจะกลับมาใช้งานได้อีกครั้ง`,
+    confirmLabel: "ยกเลิกการจัดเก็บ",
+    tone: "warning",
+  });
 
   if (!confirmed) return;
 
@@ -273,10 +261,33 @@ async function handleBulkUnarchive() {
   setNotice(`ยกเลิกการจัดเก็บ ${targets.length} ห้องเรียบร้อยแล้ว`);
 }
 
-  async function handleDeletePermanently() {
-    if (!isDeleteConfirmed || pending) return;
+  async function handleDeletePermanently(targets: Room[]) {
+    if (pending) return;
+    if (targets.length > 100) {
+      setNotice("ลบห้องถาวรได้ครั้งละไม่เกิน 100 ห้อง");
+      return;
+    }
 
-    const targets = confirmDeleteTargets;
+    const single = targets.length === 1;
+    const names = targets
+      .slice(0, 3)
+      .map((room) => `"${room.name}"`)
+      .join(", ");
+    const confirmed = await confirm({
+      title: "ลบห้องถาวรไหม?",
+      description: single
+        ? `ห้อง "${targets[0].name}" พร้อมสมาชิก โพสต์ และรายงานทั้งหมดจะถูกลบถาวรและกู้คืนไม่ได้ ไม่ต้องรอรายงาน`
+        : `ห้องที่เลือก ${targets.length} ห้อง (${names}${
+            targets.length > 3 ? ` และอีก ${targets.length - 3} ห้อง` : ""
+          }) พร้อมสมาชิก โพสต์ และรายงานทั้งหมดจะถูกลบถาวรและกู้คืนไม่ได้ ไม่ต้องรอรายงาน`,
+      confirmLabel: "ลบถาวร",
+      requireText: single ? targets[0].name.trim() : "ลบถาวร",
+      requireTextLabel: single
+        ? "พิมพ์ชื่อห้องเพื่อยืนยัน"
+        : 'พิมพ์ "ลบถาวร" เพื่อยืนยัน',
+    });
+    if (!confirmed) return;
+
     setPending(true);
     setNotice("");
 
@@ -286,21 +297,18 @@ async function handleBulkUnarchive() {
       );
 
       if (!result.ok) {
-        closeDeleteModal();
         setNotice(result.error);
         return;
       }
 
       const deletedIds = new Set(targets.map((room) => room.id));
       setSelected((current) => current.filter((id) => !deletedIds.has(id)));
-      closeDeleteModal();
       setNotice(
-        targets.length === 1
+        single
           ? `ลบห้อง "${targets[0].name}" ถาวรเรียบร้อยแล้ว`
           : `ลบห้องถาวรเรียบร้อยแล้ว ${result.deletedCount} ห้อง`
       );
     } catch {
-      closeDeleteModal();
       setNotice("ไม่สามารถลบห้องถาวรได้ กรุณาลองใหม่");
     } finally {
       setPending(false);
@@ -356,7 +364,6 @@ async function handleBulkUnarchive() {
               onClick={() => {
                 setTab(item.id);
                 setSelected([]);
-                closeDeleteModal();
               }}
               className={`-mb-px border-b-2 pb-2 text-sm transition ${
                 tab === item.id
@@ -421,7 +428,7 @@ async function handleBulkUnarchive() {
               <button
                 type="button"
                 disabled={pending}
-                onClick={() => openDeleteModal(selectedRooms)}
+                onClick={() => handleDeletePermanently(selectedRooms)}
                 className="rounded-md bg-red-600 px-3 py-1.5 text-white hover:bg-red-700 disabled:opacity-50"
               >
                 ลบถาวร
@@ -533,7 +540,8 @@ async function handleBulkUnarchive() {
                     ) : (
                       <button
                         type="button"
-                        onClick={() => setConfirmArchive(room)}
+                        disabled={pending}
+                        onClick={() => handleArchive(room)}
                         className="rounded-lg border border-edge-strong px-3 py-2 text-xs font-medium hover:bg-butter"
                       >
                         จัดเก็บ
@@ -543,7 +551,7 @@ async function handleBulkUnarchive() {
                       <button
                         type="button"
                         disabled={pending}
-                        onClick={() => openDeleteModal([room])}
+                        onClick={() => handleDeletePermanently([room])}
                         className="rounded-lg border border-red-300 px-3 py-2 text-xs font-medium text-red-500 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-40"
                       >
                         ลบถาวร
@@ -628,92 +636,7 @@ async function handleBulkUnarchive() {
         </div>
       )}
 
-      {confirmArchive && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="max-h-[calc(100dvh-2rem)] w-full max-w-sm overflow-y-auto rounded-xl bg-white p-6 shadow-xl">
-            <h2 className="text-lg font-semibold">จัดเก็บห้องแชท?</h2>
-            <p className="mt-2 text-sm text-ink-soft">
-              ต้องการจัดเก็บห้อง &quot;{confirmArchive.name}&quot; ใช่หรือไม่?
-              ข้อมูลห้องจะยังอยู่ในระบบ แต่สถานะจะเปลี่ยนเป็นจัดเก็บแล้ว
-            </p>
-
-            <div className="mt-6 flex justify-end gap-2">
-              <button
-                type="button"
-                disabled={pending}
-                onClick={() => setConfirmArchive(null)}
-                className="rounded-lg border border-edge-strong px-4 py-2 text-sm hover:bg-cream disabled:opacity-50"
-              >
-                ยกเลิก
-              </button>
-              <button
-                type="button"
-                disabled={pending}
-                onClick={handleArchive}
-                className="rounded-lg bg-amber-600 px-4 py-2 text-sm text-white hover:bg-amber-700 disabled:opacity-50"
-              >
-                {pending ? "กำลังจัดเก็บ..." : "ยืนยันจัดเก็บ"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {confirmDeleteTargets.length > 0 && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="max-h-[calc(100dvh-2rem)] w-full max-w-sm overflow-y-auto rounded-xl bg-white p-6 shadow-xl">
-            <h2 className="text-lg font-semibold text-red-600">ลบห้องถาวร?</h2>
-            <p className="mt-2 text-sm text-ink-soft">
-              {confirmDeleteTargets.length === 1
-                ? `ห้อง "${confirmDeleteTargets[0].name}" พร้อมสมาชิก โพสต์ และรายงานทั้งหมดจะถูกลบถาวร และกู้คืนไม่ได้ ไม่ต้องรอรายงาน`
-                : `ห้องที่เลือก ${confirmDeleteTargets.length} ห้อง (${confirmDeleteTargets
-                    .slice(0, 3)
-                    .map((room) => `"${room.name}"`)
-                    .join(", ")}${
-                    confirmDeleteTargets.length > 3
-                      ? ` และอีก ${confirmDeleteTargets.length - 3} ห้อง`
-                      : ""
-                  }) พร้อมสมาชิก โพสต์ และรายงานทั้งหมดจะถูกลบถาวร และกู้คืนไม่ได้ ไม่ต้องรอรายงาน`}
-            </p>
-
-            <label
-              htmlFor="confirm-delete-room-input"
-              className="mt-4 block text-sm font-medium text-ink"
-            >
-              {confirmDeleteTargets.length === 1
-                ? "พิมพ์ชื่อห้องเพื่อยืนยัน"
-                : 'พิมพ์ "ลบถาวร" เพื่อยืนยัน'}
-            </label>
-            <input
-              id="confirm-delete-room-input"
-              value={deleteConfirmText}
-              onChange={(event) => setDeleteConfirmText(event.target.value)}
-              placeholder={requiredDeletePhrase}
-              disabled={pending}
-              className="mt-2 w-full rounded-lg border border-ink px-3 py-2 text-sm outline-none placeholder:text-ink-soft/60 focus:border-red-600 disabled:opacity-50"
-            />
-
-            <div className="mt-6 flex justify-end gap-2">
-              <button
-                type="button"
-                disabled={pending}
-                onClick={closeDeleteModal}
-                className="rounded-lg border border-ink bg-white px-4 py-2 text-sm text-ink hover:bg-cream disabled:opacity-50"
-              >
-                ยกเลิก
-              </button>
-              <button
-                type="button"
-                disabled={pending || !isDeleteConfirmed}
-                onClick={handleDeletePermanently}
-                className="rounded-lg bg-red-600 px-4 py-2 text-sm text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {pending ? "กำลังลบถาวร..." : "ยืนยันลบถาวร"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {confirmDialog}
     </div>
   );
 }

@@ -26,6 +26,96 @@ function formatNumber(value: number) {
   return numberFormat.format(value);
 }
 
+// Both charts share one frame: a y-axis in whole numbers with gridlines, a
+// label under every day, and today picked out in orange.
+const CHART = { w: 420, h: 176, left: 30, right: 10, top: 18, bottom: 26 };
+const plotW = CHART.w - CHART.left - CHART.right;
+const plotH = CHART.h - CHART.top - CHART.bottom;
+
+// Counts are whole numbers, so the axis tops out at a multiple of 4 and every
+// gridline lands on a whole number.
+function axisMax(data: number[]) {
+  return Math.max(4, Math.ceil(Math.max(...data, 0) / 4) * 4);
+}
+
+function ChartFrame({
+  labels,
+  data,
+  label,
+  children,
+}: {
+  labels: string[];
+  data: number[];
+  label: string;
+  children: (geometry: {
+    max: number;
+    x: (index: number) => number;
+    y: (value: number) => number;
+    step: number;
+  }) => React.ReactNode;
+}) {
+  const max = axisMax(data);
+  const step = plotW / data.length;
+  const x = (index: number) => CHART.left + step * (index + 0.5);
+  const y = (value: number) => CHART.top + plotH - (value / max) * plotH;
+  const ticks = [0, 1, 2, 3, 4].map((i) => (max / 4) * i);
+
+  return (
+    <svg
+      viewBox={`0 0 ${CHART.w} ${CHART.h}`}
+      className="mt-4 h-auto w-full"
+      role="img"
+      aria-label={label}
+    >
+      {ticks.map((tick) => (
+        <g key={tick}>
+          <line
+            x1={CHART.left}
+            x2={CHART.w - CHART.right}
+            y1={y(tick)}
+            y2={y(tick)}
+            className={tick === 0 ? "stroke-ink/40" : "stroke-edge-strong"}
+            strokeDasharray={tick === 0 ? undefined : "3 4"}
+            strokeWidth="1"
+          />
+          <text
+            x={CHART.left - 6}
+            y={y(tick) + 3.5}
+            textAnchor="end"
+            className="fill-ink-soft text-[10px]"
+          >
+            {tick}
+          </text>
+        </g>
+      ))}
+
+      {children({ max, x, y, step })}
+
+      {labels.map((text, index) => (
+        <text
+          key={`${text}-${index}`}
+          x={x(index)}
+          y={CHART.h - 8}
+          textAnchor="middle"
+          className={`text-[11px] ${
+            index === labels.length - 1
+              ? "fill-kmutt-orange-dark font-bold"
+              : "fill-ink-soft"
+          }`}
+        >
+          {text}
+        </text>
+      ))}
+    </svg>
+  );
+}
+
+function ChartEmpty({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="mt-1 text-center text-xs text-ink-soft/70">{children}</p>
+  );
+}
+
 // กราฟเส้น
 function UserChart({
   labels,
@@ -34,57 +124,72 @@ function UserChart({
   labels: string[];
   data: number[];
 }) {
-  const max = Math.max(...data, 1);
-  const min = Math.min(...data, 0);
-  const range = max - min || 1;
-
-  const points = data
-    .map((value, index) => {
-      const x = 10 + (index * 380) / 6;
-      const y = 78 - ((value - min) / range) * 58;
-      return `${x},${y}`;
-    })
-    .join(" ");
+  const hasData = data.some((value) => value > 0);
 
   return (
-    <div className="mt-5">
-      <svg
-        viewBox="0 0 400 100"
-        className="h-[100px] w-full overflow-visible"
-        role="img"
-        aria-label="กราฟจำนวนผู้ใช้ใหม่ในช่วง 7 วันที่ผ่านมา"
+    <div>
+      <ChartFrame
+        labels={labels}
+        data={data}
+        label="กราฟจำนวนผู้ใช้ใหม่ในช่วง 7 วันที่ผ่านมา"
       >
-        <line
-          x1="10"
-          y1="48"
-          x2="390"
-          y2="48"
-          stroke="var(--color-edge-strong)"
-          strokeWidth="1"
-        />
+        {({ x, y }) => {
+          const line = data.map((v, i) => `${x(i)},${y(v)}`).join(" ");
+          const baseY = y(0);
 
-        {data.some((value) => value > 0) && (
-          <polyline
-            points={points}
-            fill="none"
-            stroke="var(--color-ink)"
-            strokeWidth="1.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        )}
-      </svg>
+          return (
+            <>
+              {hasData && (
+                <>
+                  <polygon
+                    points={`${x(0)},${baseY} ${line} ${x(data.length - 1)},${baseY}`}
+                    className="fill-kmutt-yellow/30"
+                  />
+                  <polyline
+                    points={line}
+                    fill="none"
+                    className="stroke-ink"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </>
+              )}
+              {data.map((value, index) => {
+                const today = index === data.length - 1;
 
-      <div className="mt-1 flex justify-between text-[11px] text-ink-soft">
-        {labels.map((label, index) => (
-          <span key={`${label}-${index}`}>{label}</span>
-        ))}
-      </div>
+                return (
+                  <g key={`${labels[index]}-${index}`}>
+                    <title>{`${labels[index]}: ${value} คน`}</title>
+                    <circle
+                      cx={x(index)}
+                      cy={y(value)}
+                      r={today ? 5 : 3.5}
+                      className={`stroke-ink ${
+                        today ? "fill-kmutt-orange-dark" : "fill-white"
+                      }`}
+                      strokeWidth="1.5"
+                    />
+                    {value > 0 && (
+                      <text
+                        x={x(index)}
+                        y={y(value) - 9}
+                        textAnchor="middle"
+                        className="fill-ink text-[11px] font-bold"
+                      >
+                        {value}
+                      </text>
+                    )}
+                  </g>
+                );
+              })}
+            </>
+          );
+        }}
+      </ChartFrame>
 
-      {!data.some((value) => value > 0) && (
-        <p className="mt-2 text-center text-xs text-ink-soft/70">
-          ยังไม่มีข้อมูลผู้สมัครในช่วง 7 วันที่ผ่านมา
-        </p>
+      {!hasData && (
+        <ChartEmpty>ยังไม่มีข้อมูลผู้สมัครในช่วง 7 วันที่ผ่านมา</ChartEmpty>
       )}
     </div>
   );
@@ -98,40 +203,59 @@ function PostsChart({
   labels: string[];
   data: number[];
 }) {
-  const max = Math.max(...data, 1);
+  const hasData = data.some((value) => value > 0);
 
   return (
-    <div className="mt-5">
-      <div className="flex h-[100px] items-end justify-between gap-3">
-        {data.map((value, index) => {
-          const height = (value / max) * 48 + (value > 0 ? 1 : 0);
+    <div>
+      <ChartFrame
+        labels={labels}
+        data={data}
+        label="กราฟจำนวนโพสต์ต่อวันในช่วง 7 วันที่ผ่านมา"
+      >
+        {({ x, y, step }) => {
+          const barW = Math.min(26, step * 0.5);
 
           return (
-            <div
-              key={`${labels[index]}-${index}`}
-              className="flex h-full flex-1 items-end justify-center"
-              title={`${labels[index]}: ${value} โพสต์`}
-            >
-              <div
-                className="w-full max-w-[20px] rounded-t-[4px] bg-ink"
-                style={{ height: `${height}px` }}
-              />
-            </div>
+            <>
+              {data.map((value, index) => {
+                const today = index === data.length - 1;
+                const top = y(value);
+                const height = y(0) - top;
+
+                return (
+                  <g key={`${labels[index]}-${index}`}>
+                    <title>{`${labels[index]}: ${value} โพสต์`}</title>
+                    {value > 0 && (
+                      <>
+                        <rect
+                          x={x(index) - barW / 2}
+                          y={top}
+                          width={barW}
+                          height={height}
+                          rx="4"
+                          className={
+                            today ? "fill-kmutt-orange-dark" : "fill-ink"
+                          }
+                        />
+                        <text
+                          x={x(index)}
+                          y={top - 6}
+                          textAnchor="middle"
+                          className="fill-ink text-[11px] font-bold"
+                        >
+                          {value}
+                        </text>
+                      </>
+                    )}
+                  </g>
+                );
+              })}
+            </>
           );
-        })}
-      </div>
+        }}
+      </ChartFrame>
 
-      <div className="mt-4 flex justify-between text-[11px] text-ink-soft">
-        {labels.map((label, index) => (
-          <span key={`${label}-${index}`}>{label}</span>
-        ))}
-      </div>
-
-      {!data.some((value) => value > 0) && (
-        <p className="mt-2 text-center text-xs text-ink-soft/70">
-          ยังไม่มีโพสต์ในช่วง 7 วันที่ผ่านมา
-        </p>
-      )}
+      {!hasData && <ChartEmpty>ยังไม่มีโพสต์ในช่วง 7 วันที่ผ่านมา</ChartEmpty>}
     </div>
   );
 }

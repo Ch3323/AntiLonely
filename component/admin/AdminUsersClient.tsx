@@ -5,6 +5,7 @@ import { type SanctionTarget } from "@/component/admin/SanctionParts";
 import SuspendUserModal from "@/component/admin/SuspendUserModal";
 import UserDetailModal from "@/component/admin/UserDetailModal";
 import WarnUserModal from "@/component/admin/WarnUserModal";
+import { useConfirm } from "@/component/ui/ConfirmDialog";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useNow } from "@/component/hooks/useNow";
@@ -118,6 +119,7 @@ export default function AdminUsersClient({
   const [warnTarget, setWarnTarget] = useState<SanctionTarget | null>(null);
   const [banTarget, setBanTarget] = useState<SanctionTarget | null>(null);
   const [isPending, startTransition] = useTransition();
+  const { confirm, dialog: confirmDialog } = useConfirm();
 
   const now = useNow();
 
@@ -167,21 +169,26 @@ export default function AdminUsersClient({
   }
 
   // เรียก Server Action เพื่อเปลี่ยนสถานะใน Database
-  function changeStatus(ids: string[], status: Status) {
+  async function changeStatus(ids: string[], status: Status) {
     if (ids.length === 0 || isPending) return;
 
-    if (
-      status === "banned" &&
-      !window.confirm(`ยืนยันการแบน ${ids.length} บัญชี?`)
-    ) {
-      return;
+    if (status === "banned") {
+      const confirmed = await confirm({
+        title: "แบนบัญชีที่เลือกไหม?",
+        description: `บัญชี ${ids.length} บัญชีจะถูกแบนและเข้าใช้งานไม่ได้`,
+        confirmLabel: "ยืนยันการแบน",
+      });
+      if (!confirmed) return;
     }
 
-    if (
-      status === "suspended" &&
-      !window.confirm(`ยืนยันการระงับ ${ids.length} บัญชี?`)
-    ) {
-      return;
+    if (status === "suspended") {
+      const confirmed = await confirm({
+        title: "ระงับบัญชีที่เลือกไหม?",
+        description: `บัญชี ${ids.length} บัญชีจะถูกระงับการใช้งาน`,
+        confirmLabel: "ยืนยันการระงับ",
+        tone: "warning",
+      });
+      if (!confirmed) return;
     }
 
     setError("");
@@ -224,16 +231,16 @@ export default function AdminUsersClient({
     changeStatus(ids, nextStatus);
   }
 
-  function changeRole(user: User, role: Role) {
+  async function changeRole(user: User, role: Role) {
     if (role === user.role || isPending) return;
 
-    if (
-      !window.confirm(
-        `เปลี่ยน role ของ ${user.name} เป็น ${roleLabel[role]}?`,
-      )
-    ) {
-      return;
-    }
+    const confirmed = await confirm({
+      title: "เปลี่ยน role ไหม?",
+      description: `เปลี่ยน role ของ ${user.name} เป็น ${roleLabel[role]}`,
+      confirmLabel: "เปลี่ยน role",
+      tone: "warning",
+    });
+    if (!confirmed) return;
 
     setError("");
 
@@ -253,6 +260,7 @@ export default function AdminUsersClient({
 
   return (
     <div>
+      {confirmDialog}
       {/* หัวหน้า + ค้นหา */}
       <div className="flex flex-wrap items-start justify-between gap-6">
         <div>

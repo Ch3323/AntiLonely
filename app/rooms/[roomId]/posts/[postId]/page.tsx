@@ -6,6 +6,7 @@ import Header from '@/component/layout/Header';
 import { PostThreadClient } from '@/component/post-thread/PostThreadClient';
 import { RoomLiveRefresh } from '@/component/layout/LiveRefresh';
 import { getRoomLiveConfig, isRoomLiveConfigured } from '@/lib/rooms/room-live-server';
+import { getMuteState } from '@/lib/notifications/notification-mute';
 import { getPostThreadData } from './actions';
 
 export const metadata = {
@@ -48,6 +49,12 @@ async function PostThreadContent({ params }: PostThreadPageProps) {
     isMember: data.memberStatus === 'active',
   });
 
+  const initialMuted = await getMuteState(
+    data.currentUser?.id,
+    'post',
+    data.thread.id
+  );
+
   return (
     <>
       <RoomLiveRefresh live={live} fallbackPoll={!isRoomLiveConfigured()} />
@@ -63,6 +70,7 @@ async function PostThreadContent({ params }: PostThreadPageProps) {
         currentUser={data.currentUser}
         myRooms={data.myRooms}
         serverTime={data.serverTime}
+        initialMuted={initialMuted}
       />
     </>
   );

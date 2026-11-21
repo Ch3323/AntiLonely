@@ -11,6 +11,7 @@ import {
 } from "@/lib/rooms/room-live-server";
 import { getRoomPresenceConfig } from "@/lib/rooms/room-presence-server";
 import { parsePageNumber, parsePostSort } from "@/lib/rooms/room-board";
+import { getMuteState } from "@/lib/notifications/notification-mute";
 import { getRoomBoardData } from "./actions";
 
 type Props = {
@@ -64,6 +65,12 @@ async function RoomBoardFeedContent({ params, searchParams }: Props) {
     isMember: data.membership.status === "joined",
   });
 
+  const initialMuted = await getMuteState(
+    data.currentUser?.id,
+    "room",
+    data.room.id,
+  );
+
   return (
     <>
       <RoomLiveRefresh live={live} fallbackPoll={!isRoomLiveConfigured()} />
@@ -80,6 +87,7 @@ async function RoomBoardFeedContent({ params, searchParams }: Props) {
         myRooms={data.myRooms}
         serverTime={data.serverTime}
         presence={presence}
+        initialMuted={initialMuted}
       />
     </>
   );

@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/shared/prisma';
 import { signalUserChange } from '@/lib/rooms/room-live-notify';
+import { isNotificationMuted } from '@/lib/notifications/notification-mute';
 
 interface ReactionTarget {
   messageId: string;
@@ -33,6 +34,16 @@ export async function notifyReactionAdded(target: ReactionTarget): Promise<void>
       select: { id: true },
     });
     if (existing) return;
+
+    // They turned this room or thread's notices off.
+    if (
+      await isNotificationMuted(authorId, {
+        roomId: target.roomId,
+        postId: target.postId,
+      })
+    ) {
+      return;
+    }
 
     await prisma.notification.create({
       data: {
