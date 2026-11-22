@@ -52,6 +52,7 @@ function refreshRoomPages(room: { id: string; slug: string }) {
 // shared links keep working).
 export async function updateRoomDetails(input: {
   roomId: string;
+  name: unknown;
   description: unknown;
   rules: unknown;
 }): Promise<ActionResult<{ saved: true }>> {
@@ -64,7 +65,11 @@ export async function updateRoomDetails(input: {
 
     await prisma.room.update({
       where: { id: owner.room.id },
-      data: { description: checked.value.description, rules: checked.value.rules },
+      data: {
+        name: checked.value.name,
+        description: checked.value.description,
+        rules: checked.value.rules,
+      },
     });
 
     refreshRoomPages(owner.room);

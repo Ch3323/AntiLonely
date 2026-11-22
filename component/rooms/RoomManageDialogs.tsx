@@ -12,7 +12,7 @@ import {
 import RulesEditor from "@/component/rooms/RulesEditor";
 import Spinner from "@/component/ui/Spinner";
 import { serializeRoomRules, type RoomRulesStyle } from "@/lib/rooms/room-board";
-import { ROOM_DESCRIPTION_MAX } from "@/lib/rooms/room-create";
+import { ROOM_DESCRIPTION_MAX, ROOM_NAME_MAX } from "@/lib/rooms/room-create";
 import {
   alertClass,
   dangerButtonClass,
@@ -74,6 +74,7 @@ function Dialog({
 
 export function EditRoomDialog({
   roomId,
+  name: initialName,
   description: initialDescription,
   rulesList,
   rulesStyle,
@@ -82,6 +83,7 @@ export function EditRoomDialog({
   onSaved,
 }: {
   roomId: string;
+  name: string;
   description: string;
   rulesList: string[];
   rulesStyle: RoomRulesStyle;
@@ -91,6 +93,7 @@ export function EditRoomDialog({
   onSaved: (message: string) => void;
 }) {
   const router = useRouter();
+  const [name, setName] = useState(initialName);
   const [description, setDescription] = useState(initialDescription);
   const [items, setItems] = useState<string[]>(
     rulesAreDefault ? [""] : rulesList,
@@ -108,6 +111,7 @@ export function EditRoomDialog({
       try {
         const result = await updateRoomDetails({
           roomId,
+          name,
           description,
           rules: serializeRoomRules(items, style),
         });
@@ -138,6 +142,20 @@ export function EditRoomDialog({
           save();
         }}
       >
+        <div className="flex flex-col gap-1">
+          <label htmlFor="edit-room-name" className={labelClass}>
+            ชื่อห้อง
+          </label>
+          <input
+            id="edit-room-name"
+            type="text"
+            maxLength={ROOM_NAME_MAX}
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            className={inputClass}
+          />
+        </div>
+
         <div className="flex flex-col gap-1">
           <label htmlFor="edit-room-about" className={labelClass}>
             คำอธิบายห้อง

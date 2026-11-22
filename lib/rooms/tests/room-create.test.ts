@@ -4,6 +4,7 @@ import {
   ROOM_NAME_MAX,
   ROOM_PASSWORD_MIN,
   validateRoomCreate,
+  validateRoomEdit,
   visibleLength,
 } from '../room-create.ts';
 
@@ -62,4 +63,15 @@ test('validateRoomCreate: a private room needs a matching password of the minimu
 test('validateRoomCreate: unknown visibility is treated as public', () => {
   const result = validateRoomCreate({ name: 'abc', visibility: 'secret', password: 'x' });
   assert.equal(result.ok && result.value.password, null);
+});
+
+test('validateRoomEdit: the owner can rename a room, with the create limits', () => {
+  const ok = validateRoomEdit({ name: '  ห้อง   ใหม่  ', description: '', rules: '' });
+  assert.deepEqual(ok, {
+    ok: true,
+    value: { name: 'ห้อง ใหม่', description: '', rules: null },
+  });
+  assert.equal(validateRoomEdit({ name: 'ab' }).ok, false);
+  assert.equal(validateRoomEdit({ name: 'ก'.repeat(ROOM_NAME_MAX + 1) }).ok, false);
+  assert.equal(validateRoomEdit({}).ok, false);
 });

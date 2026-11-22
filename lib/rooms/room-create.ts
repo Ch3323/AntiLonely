@@ -46,16 +46,28 @@ export function visibleLength(value: string): number {
     .length;
 }
 
-// The owner's edit form: the description and rules only, with the same limits
-// as when the room was created.
+// The owner's edit form: name, description and rules, with the same limits as
+// when the room was created. The room's link (slug) stays as it was.
 export function validateRoomEdit(input: {
+  name?: unknown;
   description?: unknown;
   rules?: unknown;
 }):
-  | { ok: true; value: { description: string; rules: string | null } }
+  | {
+      ok: true;
+      value: { name: string; description: string; rules: string | null };
+    }
   | { ok: false; error: string } {
+  const name = text(input.name).trim().replace(/\s+/g, ' ');
   const description = text(input.description).trim();
   const rules = text(input.rules).trim();
+  const nameLength = visibleLength(name);
+  if (nameLength < ROOM_NAME_MIN || nameLength > ROOM_NAME_MAX) {
+    return {
+      ok: false,
+      error: `ชื่อห้องต้องยาว ${ROOM_NAME_MIN}–${ROOM_NAME_MAX} ตัวอักษร`,
+    };
+  }
   if (visibleLength(description) > ROOM_DESCRIPTION_MAX) {
     return {
       ok: false,
@@ -68,7 +80,7 @@ export function validateRoomEdit(input: {
       error: `กติกาของห้องยาวได้ไม่เกิน ${ROOM_RULES_MAX} ตัวอักษร`,
     };
   }
-  return { ok: true, value: { description, rules: rules || null } };
+  return { ok: true, value: { name, description, rules: rules || null } };
 }
 
 export function validateRoomCreate(input: RoomCreateInput): RoomCreateCheck {
