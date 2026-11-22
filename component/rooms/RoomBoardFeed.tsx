@@ -1459,6 +1459,7 @@ export default function RoomBoardFeed({
       {manageDialog === "edit" && (
         <EditRoomDialog
           roomId={room.id}
+          name={room.name}
           description={room.description}
           rulesList={rulesList}
           rulesStyle={room.rulesStyle ?? "number"}
