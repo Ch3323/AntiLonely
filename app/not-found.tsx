@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import Header from "@/component/layout/Header";
+import Mascot from "@/component/ui/Mascot";
 import Paper from "@/component/ui/Paper";
 import { highlightClass, primaryButtonClass } from "@/lib/shared/styles";
 
@@ -16,8 +17,19 @@ export default function NotFound() {
       {/* The header finds out who is signed in by itself: the bell reads the
           unread count and the create button asks for your rooms. */}
       <Header />
-      <main className="flex flex-1 items-center justify-center px-4 py-10">
+      <main className="flex flex-1 items-center justify-center gap-8 px-4 py-10">
+        {/* On a wide screen a cat stands on each side of the sheet. */}
+        <Mascot
+          pose="cheer"
+          className="hidden w-80 shrink-0 -rotate-3 lg:block"
+        />
         <Paper className="w-full max-w-sm text-center">
+          {/* Narrow screens have no room beside the sheet, so one cat holds up
+              a blank note on it instead. */}
+          <Mascot
+            pose="peek"
+            className="mx-auto -mt-6 mb-1 w-48 -rotate-3 lg:hidden"
+          />
           <p
             aria-hidden="true"
             className="font-display text-6xl font-semibold text-kmutt-orange"
@@ -38,6 +50,10 @@ export default function NotFound() {
             กลับหน้าแรก
           </Link>
         </Paper>
+        <Mascot
+          pose="peek"
+          className="hidden w-80 shrink-0 rotate-3 lg:block"
+        />
       </main>
     </div>
   );

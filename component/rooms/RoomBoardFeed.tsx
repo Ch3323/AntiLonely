@@ -16,6 +16,7 @@ import { setNotificationMute } from "@/app/notifications/actions";
 import EmptyNote from "@/component/ui/EmptyNote";
 import Header from "@/component/layout/Header";
 import Icon from "@/component/ui/Icon";
+import RandomMascot from "@/component/ui/RandomMascot";
 import Tape from "@/component/ui/Tape";
 import PostCard from "@/component/rooms/PostCard";
 import RoomOnlineChip from "@/component/rooms/RoomOnlineChip";
@@ -1378,21 +1379,26 @@ export default function RoomBoardFeed({
         </section>
 
         {/* กติกาห้อง (Right Rail สำหรับ Desktop >= 1024px) */}
-        <aside
-          aria-label="กติกาของห้อง"
-          className={`relative hidden w-[280px] shrink-0 flex-col gap-2 p-5 pt-6 xl:w-[320px] lg:flex ${indexCardClass}`}
-        >
-          <Tape />
-          <h2 className="mb-1 border-b-[1.5px] border-dashed border-edge pb-2 font-display text-lg font-semibold">
-            กติกาของห้อง
-          </h2>
+        <div className="hidden w-[280px] shrink-0 xl:w-[320px] lg:block">
+          <aside
+            aria-label="กติกาของห้อง"
+            className={`relative flex flex-col gap-2 p-5 pt-6 ${indexCardClass}`}
+          >
+            <Tape />
+            <h2 className="mb-1 border-b-[1.5px] border-dashed border-edge pb-2 font-display text-lg font-semibold">
+              กติกาของห้อง
+            </h2>
 
-          <RulesList
-            rules={rulesList}
-            style={room.rulesStyle}
-            className="space-y-2 break-words text-sm text-ink"
+            <RulesList
+              rules={rulesList}
+              style={room.rulesStyle}
+              className="space-y-2 break-words text-sm text-ink"
+            />
+          </aside>
+          <RandomMascot
+            className="mx-auto mt-6 w-full max-w-80 -rotate-3"
           />
-        </aside>
+        </div>
       </main>
 
       {/* Leave Room Modal */}

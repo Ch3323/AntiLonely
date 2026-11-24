@@ -7,6 +7,7 @@ import { HomeAutoRefresh } from "@/component/layout/LiveRefresh";
 import PostBox from "@/component/rooms/PostBox";
 import RoomMembership from "@/component/rooms/RoomMembership";
 import Sidebar from "@/component/layout/Sidebar";
+import RandomMascot from "@/component/ui/RandomMascot";
 import { getHomeData } from "@/lib/rooms/home-data";
 import { getLobbyLiveTopic } from "@/lib/rooms/room-live-server";
 
@@ -32,7 +33,12 @@ async function HomeContent() {
           alias={viewer?.alias ?? ""}
         />
         <div className="mx-auto grid w-full max-w-7xl gap-6 px-4 py-6 md:grid-cols-[200px_1fr] lg:grid-cols-[1fr_3fr]">
-          <Sidebar />
+          <div className="self-start">
+            <Sidebar />
+            <RandomMascot
+              className="mx-auto mt-6 hidden w-full max-w-80 rotate-3 lg:block"
+            />
+          </div>
           <HomeMain rooms={rooms}>
             <PostBox name={viewer?.name ?? null} />
           </HomeMain>
