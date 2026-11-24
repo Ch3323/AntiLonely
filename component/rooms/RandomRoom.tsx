@@ -136,6 +136,7 @@ function RandomRoomModal({
         ) : (
           <EmptyNote
             icon="dice"
+            mascot="cheer"
             title="ไม่มีห้องให้สุ่มแล้ว"
             description="คุณเข้าร่วมครบทุกห้องที่เปิดให้เข้าแล้ว ไว้มีห้องใหม่ ๆ ค่อยมาสุ่มกันนะ"
           >
