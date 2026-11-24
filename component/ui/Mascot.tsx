@@ -26,7 +26,7 @@ export default function Mascot({
       width={321}
       height={321}
       draggable={false}
-      className={`select-none motion-safe:transition-transform motion-safe:duration-200 motion-safe:hover:-translate-y-1 motion-safe:hover:scale-105 motion-safe:active:translate-y-0 motion-safe:active:scale-90${className}`}
+      className={`select-none motion-safe:transition-transform motion-safe:duration-200 motion-safe:hover:-translate-y-1 motion-safe:hover:scale-105 motion-safe:active:translate-y-0 motion-safe:active:scale-90 ${className}`}
     />
   );
 }

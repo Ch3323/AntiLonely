@@ -24,12 +24,6 @@ export default function NotFound() {
           className="hidden w-80 shrink-0 -rotate-3 lg:block"
         />
         <Paper className="w-full max-w-sm text-center">
-          {/* Narrow screens have no room beside the sheet, so one cat holds up
-              a blank note on it instead. */}
-          <Mascot
-            pose="peek"
-            className="mx-auto -mt-6 mb-1 w-48 -rotate-3 lg:hidden"
-          />
           <p
             aria-hidden="true"
             className="font-display text-6xl font-semibold text-kmutt-orange"

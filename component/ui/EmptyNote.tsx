@@ -19,16 +19,21 @@ export default function EmptyNote({
 }) {
   return (
     <div className="flex flex-col items-center gap-2 rounded-xl border-2 border-dashed border-edge-strong bg-white/70 px-6 py-12 text-center">
-      {mascot ? (
-        <Mascot pose={mascot} className="-mt-8 mb-1 w-full max-w-80 -rotate-3" />
-      ) : (
-        <span
-          aria-hidden="true"
-          className="mb-2 flex size-14 -rotate-6 items-center justify-center rounded-2xl border-[1.5px] border-ink bg-butter shadow-sticker"
-        >
-          <Icon name={icon} className="size-7" />
-        </span>
+      {/* The cat only appears on a wide screen; narrower ones keep the icon. */}
+      {mascot && (
+        <Mascot
+          pose={mascot}
+          className="-mt-8 mb-1 hidden w-full max-w-80 -rotate-3 lg:block"
+        />
       )}
+      <span
+        aria-hidden="true"
+        className={`mb-2 size-14 -rotate-6 items-center justify-center rounded-2xl border-[1.5px] border-ink bg-butter shadow-sticker ${
+          mascot ? "flex lg:hidden" : "flex"
+        }`}
+      >
+        <Icon name={icon} className="size-7" />
+      </span>
       <p className="font-display text-xl font-semibold wrap-anywhere">{title}</p>
       {description && (
         <p className="max-w-sm text-sm text-ink-soft">{description}</p>
